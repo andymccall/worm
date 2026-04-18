@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+# Tools
+# ---------------------------------------------------------------------------
+CA65       = ca65
+LD65       = ld65
+X16EMU     = x16emu
+NEOEMU     = neo
+NEO_HOME   = ~/development/tools/neo6502
+
+# ---------------------------------------------------------------------------
+# Directories
+# ---------------------------------------------------------------------------
+SRCDIR     = src
+CFGDIR     = cfg
+BUILDDIR   = build
+
+# ---------------------------------------------------------------------------
+# Common sources
+# ---------------------------------------------------------------------------
+COMMON_SRCS = $(wildcard $(SRCDIR)/common/*.asm)
+
+# ---------------------------------------------------------------------------
+# Commander X16
+# ---------------------------------------------------------------------------
+X16_SRCS = $(wildcard $(SRCDIR)/x16/*.asm)
+X16_OBJS = $(patsubst $(SRCDIR)/%.asm,$(BUILDDIR)/x16/%.o,$(COMMON_SRCS) $(X16_SRCS))
+X16_CFG  = $(CFGDIR)/x16.cfg
+X16_OUT  = $(BUILDDIR)/x16/WORM.PRG
+
+# ---------------------------------------------------------------------------
+# Neo6502
+# ---------------------------------------------------------------------------
+NEO_SRCS   = $(wildcard $(SRCDIR)/neo/*.asm)
+NEO_OBJS   = $(patsubst $(SRCDIR)/%.asm,$(BUILDDIR)/neo/%.o,$(COMMON_SRCS) $(NEO_SRCS))
+NEO_CFG    = $(CFGDIR)/neo.cfg
+NEO_RAW    = $(BUILDDIR)/neo/worm.bin
+NEO_OUT    = $(BUILDDIR)/neo/worm.neo
+
+# ---------------------------------------------------------------------------
+# Targets
+# ---------------------------------------------------------------------------
+.PHONY: all build-x16 build-neo run-x16 run-neo clean
+
+all: build-x16 build-neo
+
+# --- Commander X16 --------------------------------------------------------
+
+build-x16: $(X16_OUT)
+
+$(BUILDDIR)/x16/%.o: $(SRCDIR)/%.asm
+	@mkdir -p $(dir $@)
+	$(CA65) --cpu 65C02 -o $@ $<
+
+$(X16_OUT): $(X16_OBJS) $(X16_CFG)
+	@mkdir -p $(dir $@)
+	$(LD65) -C $(X16_CFG) -o $@ $(X16_OBJS)
+
+run-x16: build-x16
+	$(X16EMU) -prg $(X16_OUT)
+
+# --- Neo6502 --------------------------------------------------------------
+
+build-neo: $(NEO_OUT)
+
+$(BUILDDIR)/neo/%.o: $(SRCDIR)/%.asm
+	@mkdir -p $(dir $@)
+	$(CA65) --cpu 65C02 -o $@ $<
+
+$(NEO_RAW): $(NEO_OBJS) $(NEO_CFG)
+	@mkdir -p $(dir $@)
+	$(LD65) -C $(NEO_CFG) -o $@ $(NEO_OBJS)
+
+$(NEO_OUT): $(NEO_RAW)
+	python3 $(NEO_HOME)/exec.zip $(NEO_RAW)@800 run@800 -o"$(NEO_OUT)"
+
+run-neo: build-neo
+	@mkdir -p storage
+	@cp $(NEO_OUT) storage/
+	$(NEOEMU) $(NEO_OUT) cold
+	@rm -rf storage
+	@rm -f memory.dump
+
+# --- Housekeeping ---------------------------------------------------------
+
+clean:
+	rm -rf $(BUILDDIR)
