@@ -1,20 +1,31 @@
 ; screen.asm - Start screen
 
 .export show_start_screen
+.export draw_border
+
+.export gfx_x1, gfx_y1, gfx_x2, gfx_y2
 
 .import platform_cls
 .import platform_putc
 .import platform_gotoxy
-.import platform_setcolor
 .import platform_getkey
+.import platform_set_color
+.import platform_draw_line
 
-.import CHAR_HLINE, CHAR_VLINE
-.import CHAR_TL, CHAR_TR, CHAR_BL, CHAR_BR
 .import COLOR_GREEN
 
-SCREEN_COLS  = 40
-SCREEN_ROWS  = 30
-BORDER_WIDTH = SCREEN_COLS - 2
+; Screen dimensions (pixels)
+SCREEN_W = 320
+SCREEN_H = 240
+
+; Border margin (pixels)
+BORDER_MARGIN = 10
+
+; Border coordinates (pixels)
+BORDER_X1 = BORDER_MARGIN
+BORDER_Y1 = BORDER_MARGIN
+BORDER_X2 = SCREEN_W - BORDER_MARGIN - 1
+BORDER_Y2 = SCREEN_H - BORDER_MARGIN - 1
 
 ; ---------------------------------------------------------------------------
 
@@ -22,67 +33,23 @@ BORDER_WIDTH = SCREEN_COLS - 2
 
 ; ---------------------------------------------------------------------------
 ; show_start_screen
-;   Draws the start screen with border, title, and menu.
+;   Draws the start screen with line border, title, and menu.
 ;   Returns: A = 1 (start game) or A = 0 (quit)
 ; ---------------------------------------------------------------------------
 
 .proc show_start_screen
     jsr platform_cls
 
-    ; Set green text color
+    ; Set green drawing/text color
     lda COLOR_GREEN
-    jsr platform_setcolor
+    jsr platform_set_color
 
-    ; --- Top border (row 0) ---
-    ldx #0
-    ldy #0
-    jsr platform_gotoxy
-    lda CHAR_TL
-    jsr platform_putc
-    ldx #0
-@top:
-    lda CHAR_HLINE
-    jsr platform_putc
-    inx
-    cpx #BORDER_WIDTH
-    bne @top
-    lda CHAR_TR
-    jsr platform_putc
-
-    ; --- Side borders (rows 1 to 28) ---
-    ldy #1
-@sides:
-    ldx #0
-    jsr platform_gotoxy
-    lda CHAR_VLINE
-    jsr platform_putc
-    ldx #(SCREEN_COLS - 1)
-    jsr platform_gotoxy
-    lda CHAR_VLINE
-    jsr platform_putc
-    iny
-    cpy #(SCREEN_ROWS - 1)
-    bne @sides
-
-    ; --- Bottom border (row 29) ---
-    ldx #0
-    ldy #(SCREEN_ROWS - 1)
-    jsr platform_gotoxy
-    lda CHAR_BL
-    jsr platform_putc
-    ldx #0
-@bottom:
-    lda CHAR_HLINE
-    jsr platform_putc
-    inx
-    cpx #BORDER_WIDTH
-    bne @bottom
-    lda CHAR_BR
-    jsr platform_putc
+    ; Draw line border
+    jsr draw_border
 
     ; --- Title "W O R M" centered at row 10 ---
-    ldx #16             ; (40 - 7) / 2
-    ldy #10
+    ldx #17             ; col (40 - 7) / 2 rounded up
+    ldy #10             ; row
     jsr platform_gotoxy
     ldx #0
 @title:
@@ -94,8 +61,8 @@ BORDER_WIDTH = SCREEN_COLS - 2
 
     ; --- Menu options ---
 @menu:
-    ldx #12             ; (40 - 16) / 2
-    ldy #18
+    ldx #14             ; col
+    ldy #18             ; row
     jsr platform_gotoxy
     ldx #0
 @start_msg:
@@ -106,7 +73,7 @@ BORDER_WIDTH = SCREEN_COLS - 2
     bne @start_msg
 
 @quit_msg:
-    ldx #12
+    ldx #15
     ldy #20
     jsr platform_gotoxy
     ldx #0
@@ -140,6 +107,90 @@ BORDER_WIDTH = SCREEN_COLS - 2
 .endproc
 
 ; ---------------------------------------------------------------------------
+; draw_border
+;   Draws the green line border. Assumes color is already set.
+; ---------------------------------------------------------------------------
+
+.proc draw_border
+    ; Top line
+    lda #<BORDER_X1
+    sta gfx_x1
+    lda #>BORDER_X1
+    sta gfx_x1+1
+    lda #<BORDER_Y1
+    sta gfx_y1
+    lda #>BORDER_Y1
+    sta gfx_y1+1
+    lda #<BORDER_X2
+    sta gfx_x2
+    lda #>BORDER_X2
+    sta gfx_x2+1
+    lda #<BORDER_Y1
+    sta gfx_y2
+    lda #>BORDER_Y1
+    sta gfx_y2+1
+    jsr platform_draw_line
+
+    ; Bottom line
+    lda #<BORDER_X1
+    sta gfx_x1
+    lda #>BORDER_X1
+    sta gfx_x1+1
+    lda #<BORDER_Y2
+    sta gfx_y1
+    lda #>BORDER_Y2
+    sta gfx_y1+1
+    lda #<BORDER_X2
+    sta gfx_x2
+    lda #>BORDER_X2
+    sta gfx_x2+1
+    lda #<BORDER_Y2
+    sta gfx_y2
+    lda #>BORDER_Y2
+    sta gfx_y2+1
+    jsr platform_draw_line
+
+    ; Left line
+    lda #<BORDER_X1
+    sta gfx_x1
+    lda #>BORDER_X1
+    sta gfx_x1+1
+    lda #<BORDER_Y1
+    sta gfx_y1
+    lda #>BORDER_Y1
+    sta gfx_y1+1
+    lda #<BORDER_X1
+    sta gfx_x2
+    lda #>BORDER_X1
+    sta gfx_x2+1
+    lda #<BORDER_Y2
+    sta gfx_y2
+    lda #>BORDER_Y2
+    sta gfx_y2+1
+    jsr platform_draw_line
+
+    ; Right line
+    lda #<BORDER_X2
+    sta gfx_x1
+    lda #>BORDER_X2
+    sta gfx_x1+1
+    lda #<BORDER_Y1
+    sta gfx_y1
+    lda #>BORDER_Y1
+    sta gfx_y1+1
+    lda #<BORDER_X2
+    sta gfx_x2
+    lda #>BORDER_X2
+    sta gfx_x2+1
+    lda #<BORDER_Y2
+    sta gfx_y2
+    lda #>BORDER_Y2
+    sta gfx_y2+1
+    jsr platform_draw_line
+    rts
+.endproc
+
+; ---------------------------------------------------------------------------
 
 .segment "RODATA"
 
@@ -151,3 +202,12 @@ start_text:
 
 quit_text:
     .byte "PRESS Q TO QUIT", $00
+
+; ---------------------------------------------------------------------------
+
+.segment "BSS"
+
+gfx_x1: .res 2
+gfx_y1: .res 2
+gfx_x2: .res 2
+gfx_y2: .res 2
