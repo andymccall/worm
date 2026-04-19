@@ -16,6 +16,8 @@
 .import platform_set_color
 .import draw_border
 .import draw_status_bar
+.import menu_worm_init
+.import menu_worm_update
 .import COLOR_GREEN, COLOR_BLUE, COLOR_YELLOW
 
 ; ---------------------------------------------------------------------------
@@ -99,6 +101,9 @@ COLOR_MENU_KEY = COLOR_YELLOW
     sta menu_ptr+1
     jsr print_menu_item
 
+    ; --- Init menu worm ---
+    jsr menu_worm_init
+
     ; --- Flush keyboard buffer ---
 @flush:
     jsr platform_check_key
@@ -114,6 +119,7 @@ COLOR_MENU_KEY = COLOR_YELLOW
 
 @input:
     jsr platform_wait_vsync
+    jsr menu_worm_update
     jsr platform_check_key
     cmp #0
     beq @dec_timer
