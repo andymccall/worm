@@ -1,8 +1,15 @@
+; ---------------------------------------------------------------------------
 ; platform.asm - Commander X16 platform
+; ---------------------------------------------------------------------------
+; Hardware abstraction for Commander X16: graphics, input, sound via
+; VERA PSG, KERNAL routines.
+; ---------------------------------------------------------------------------
 
 .import main
 
 .import gfx_x1, gfx_y1, gfx_x2, gfx_y2
+
+.include "api/wm_equates.inc"
 
 .export platform_init
 .export platform_exit
@@ -14,6 +21,7 @@
 .export platform_poll_input
 .export platform_wait_vsync
 .export platform_gotoxy
+.export platform_gotoxy_pixel
 .export platform_putc
 .export platform_random
 .export platform_check_key
@@ -25,22 +33,11 @@
 .export COLOR_LGRAY
 .export COLOR_BLUE
 
-; Direction constants (must match across all files)
-DIR_NONE  = 0
-DIR_UP    = 1
-DIR_DOWN  = 2
-DIR_LEFT  = 3
-DIR_RIGHT = 4
-
 ; PETSCII cursor key codes
 KEY_UP    = $91
 KEY_DOWN  = $11
 KEY_LEFT  = $9D
 KEY_RIGHT = $1D
-
-; Action input codes (returned by platform_poll_input)
-INPUT_PAUSE = 5
-INPUT_QUIT  = 6
 
 ; ---------------------------------------------------------------------------
 ; KERNAL routines
@@ -324,6 +321,19 @@ basic_stub_end:
     rol r1H
     asl r1L
     rol r1H
+    rts
+.endproc
+
+.proc platform_gotoxy_pixel
+    ; Pixel position: gfx_x1 (16-bit) = X, A = Y
+    ; Set r0 = X, r1 = Y for GRAPH_put_char
+    ldx gfx_x1
+    stx r0L
+    ldx gfx_x1+1
+    stx r0H
+    sta r1L
+    lda #0
+    sta r1H
     rts
 .endproc
 

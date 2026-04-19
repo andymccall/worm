@@ -1,4 +1,9 @@
+; ---------------------------------------------------------------------------
 ; sound.asm - Non-blocking sound sequencer and sound effect triggers
+; ---------------------------------------------------------------------------
+; Provides a frame-based sequencer that plays note sequences without
+; blocking the game loop, plus trigger functions for each SFX.
+; ---------------------------------------------------------------------------
 
 .export sfx_play_move
 .export sfx_play_food
@@ -9,11 +14,11 @@
 .export sfx_play_game_over
 .export sfx_play_get_ready
 .export sfx_update
+.export sfx_stop
 .export sfx_delay
 
 .import platform_play_note
 .import platform_stop_sound
-.import platform_wait_vsync
 
 ; ---------------------------------------------------------------------------
 
@@ -120,6 +125,18 @@
 .endproc
 
 ; ---------------------------------------------------------------------------
+; sfx_stop
+;   Stops any playing sound and resets the sequencer.
+; ---------------------------------------------------------------------------
+
+.proc sfx_stop
+    jsr platform_stop_sound
+    lda #0
+    sta sfx_active
+    rts
+.endproc
+
+; ---------------------------------------------------------------------------
 ; Sound effect triggers
 ; ---------------------------------------------------------------------------
 
@@ -181,8 +198,6 @@
 ;   $FF                                 = end of sequence
 ;
 ; Note frequencies are in Hz (16-bit).
-; X16 platform_play_note converts Hz -> VERA PSG register.
-; Neo6502 platform_play_note passes Hz directly to sound API.
 
 ; Note frequency constants in Hz (16-bit, little-endian)
 ; Octave 3

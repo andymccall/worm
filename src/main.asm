@@ -1,9 +1,14 @@
-; main.asm - Common entry point
+; ---------------------------------------------------------------------------
+; main.asm - Application entry point
+; ---------------------------------------------------------------------------
+; Top-level game flow: init, menu loop, dispatch to game/demo/about.
+; ---------------------------------------------------------------------------
 
 .export main
 
 .import platform_init
 .import platform_exit
+.import sfx_stop
 .import show_start_screen
 .import show_about_screen
 .import game_run
@@ -17,6 +22,7 @@
     jsr game_reset_stats
 
 @loop:
+    jsr game_reset_stats
     jsr show_start_screen
     ; A = 0: quit, 1: start, 2: about, 3: demo
     cmp #0
@@ -27,8 +33,8 @@
     beq @demo
 
     ; Start game
-    jsr game_reset_stats
     jsr game_run
+    jsr sfx_stop
     jmp @loop
 
 @about:
@@ -37,6 +43,7 @@
 
 @demo:
     jsr demo_run
+    jsr sfx_stop
     jmp @loop
 
 @quit:

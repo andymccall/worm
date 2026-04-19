@@ -1,9 +1,16 @@
+; ---------------------------------------------------------------------------
 ; platform.asm - Neo6502 platform
+; ---------------------------------------------------------------------------
+; Hardware abstraction for Neo6502: graphics, input, sound via the
+; Neo6502 API messaging system.
+; ---------------------------------------------------------------------------
 
 .import main
 
 .import gfx_x1, gfx_y1, gfx_x2, gfx_y2
 .import sfx_delay
+
+.include "api/wm_equates.inc"
 
 .export platform_init
 .export platform_exit
@@ -15,6 +22,7 @@
 .export platform_poll_input
 .export platform_wait_vsync
 .export platform_gotoxy
+.export platform_gotoxy_pixel
 .export platform_putc
 .export platform_random
 .export platform_check_key
@@ -25,17 +33,6 @@
 .export COLOR_YELLOW
 .export COLOR_LGRAY
 .export COLOR_BLUE
-
-; Direction constants (must match across all files)
-DIR_NONE  = 0
-DIR_UP    = 1
-DIR_DOWN  = 2
-DIR_LEFT  = 3
-DIR_RIGHT = 4
-
-; Action input codes (returned by platform_poll_input)
-INPUT_PAUSE = 5
-INPUT_QUIT  = 6
 
 ; ---------------------------------------------------------------------------
 ; Neo6502 KERNAL vectors
@@ -70,6 +67,7 @@ API_FN_SET_TEXT_COLOR  = $0F
 ; Graphics functions
 API_FN_DRAW_LINE    = $02
 API_FN_DRAW_RECT    = $03
+API_FN_DRAW_TEXT    = $06
 API_FN_SET_COLOR    = $40
 API_FN_SET_SOLID    = $41
 API_FN_FRAME_COUNT  = $25
@@ -450,6 +448,8 @@ wait_api:
     ; X = column, Y = row (in 40-column coordinate space)
     ; Neo6502 has 53 columns (6px wide font), so offset X by (53-40)/2 = 6
     ; to center the 40-column layout on the wider display
+    lda #0
+    sta neo_text_pixel_mode     ; clear pixel mode
     txa
     clc
     adc #6
@@ -464,12 +464,70 @@ wait_api:
     rts
 .endproc
 
+.proc platform_gotoxy_pixel
+    ; Pixel position: gfx_x1 (16-bit) = X, A = Y
+    ; Neo6502 DRAW_TEXT Y is top of glyph; offset by -6 to align with X16
+    sec
+    sbc #6
+    sta neo_text_y
+    lda gfx_x1
+    sta neo_text_x
+    lda gfx_x1+1
+    sta neo_text_x+1
+    lda #1
+    sta neo_text_pixel_mode
+    rts
+.endproc
+
 .proc platform_putc
     ; A = character to print
     ; Preserves X, Y
     phx
     phy
+    ldx neo_text_pixel_mode
+    bne @pixel_mode
+
+    ; Console mode: use WriteCharacter
     jsr WriteCharacter
+    ply
+    plx
+    rts
+
+@pixel_mode:
+    ; Store character in 1-byte length-prefixed string
+    sta neo_text_buf + 1
+    lda #1
+    sta neo_text_buf            ; length = 1
+
+    ; DRAW_TEXT: Group 5, Function $06
+    ; Params: X(16), Y(16), string_ptr(16)
+    jsr wait_api
+    lda neo_text_x
+    sta API_PARAMETERS + 0      ; X low
+    lda neo_text_x+1
+    sta API_PARAMETERS + 1      ; X high
+    lda neo_text_y
+    sta API_PARAMETERS + 2      ; Y low
+    lda #0
+    sta API_PARAMETERS + 3      ; Y high
+    lda #<neo_text_buf
+    sta API_PARAMETERS + 4      ; string pointer low
+    lda #>neo_text_buf
+    sta API_PARAMETERS + 5      ; string pointer high
+    lda #API_FN_DRAW_TEXT
+    sta API_FUNCTION
+    lda #API_GROUP_GRAPHICS
+    sta API_COMMAND
+
+    ; Advance X by 6 pixels (character width)
+    clc
+    lda neo_text_x
+    adc #6
+    sta neo_text_x
+    lda neo_text_x+1
+    adc #0
+    sta neo_text_x+1
+
     ply
     plx
     rts
@@ -592,9 +650,13 @@ wait_api:
 
 .segment "BSS"
 
-vsync_frame:      .res 1
-math_reg:         .res 5          ; type byte + 4 bytes for 32-bit value
-neo_snd_duration: .res 1          ; calculated note duration in centiseconds
+vsync_frame:          .res 1
+math_reg:             .res 5          ; type byte + 4 bytes for 32-bit value
+neo_snd_duration:     .res 1          ; calculated note duration in centiseconds
+neo_text_pixel_mode:  .res 1          ; 0 = console mode, 1 = pixel mode
+neo_text_x:           .res 2          ; current pixel X for text drawing
+neo_text_y:           .res 1          ; current pixel Y for text drawing
+neo_text_buf:         .res 2          ; length-prefixed 1-char string buffer
 
 ; ---------------------------------------------------------------------------
 

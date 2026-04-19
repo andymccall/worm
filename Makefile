@@ -15,23 +15,25 @@ CFGDIR     = cfg
 BUILDDIR   = build
 
 # ---------------------------------------------------------------------------
-# Common sources
+# Shared sources (api + app + main)
 # ---------------------------------------------------------------------------
-COMMON_SRCS = $(wildcard $(SRCDIR)/common/*.asm)
+SHARED_SRCS = $(SRCDIR)/main.asm \
+              $(wildcard $(SRCDIR)/api/*.asm) \
+              $(wildcard $(SRCDIR)/app/*.asm)
 
 # ---------------------------------------------------------------------------
 # Commander X16
 # ---------------------------------------------------------------------------
-X16_SRCS = $(wildcard $(SRCDIR)/x16/*.asm)
-X16_OBJS = $(patsubst $(SRCDIR)/%.asm,$(BUILDDIR)/x16/%.o,$(COMMON_SRCS) $(X16_SRCS))
+X16_SRCS = $(wildcard $(SRCDIR)/system/x16/*.asm)
+X16_OBJS = $(patsubst $(SRCDIR)/%.asm,$(BUILDDIR)/x16/%.o,$(SHARED_SRCS) $(X16_SRCS))
 X16_CFG  = $(CFGDIR)/x16.cfg
 X16_OUT  = $(BUILDDIR)/x16/WORM.PRG
 
 # ---------------------------------------------------------------------------
 # Neo6502
 # ---------------------------------------------------------------------------
-NEO_SRCS   = $(wildcard $(SRCDIR)/neo/*.asm)
-NEO_OBJS   = $(patsubst $(SRCDIR)/%.asm,$(BUILDDIR)/neo/%.o,$(COMMON_SRCS) $(NEO_SRCS))
+NEO_SRCS   = $(wildcard $(SRCDIR)/system/neo/*.asm)
+NEO_OBJS   = $(patsubst $(SRCDIR)/%.asm,$(BUILDDIR)/neo/%.o,$(SHARED_SRCS) $(NEO_SRCS))
 NEO_CFG    = $(CFGDIR)/neo.cfg
 NEO_RAW    = $(BUILDDIR)/neo/worm.bin
 NEO_OUT    = $(BUILDDIR)/neo/worm.neo
@@ -49,7 +51,7 @@ build-x16: $(X16_OUT)
 
 $(BUILDDIR)/x16/%.o: $(SRCDIR)/%.asm
 	@mkdir -p $(dir $@)
-	$(CA65) --cpu 65C02 -o $@ $<
+	$(CA65) --cpu 65C02 -I $(SRCDIR) -o $@ $<
 
 $(X16_OUT): $(X16_OBJS) $(X16_CFG)
 	@mkdir -p $(dir $@)
@@ -64,7 +66,7 @@ build-neo: $(NEO_OUT)
 
 $(BUILDDIR)/neo/%.o: $(SRCDIR)/%.asm
 	@mkdir -p $(dir $@)
-	$(CA65) --cpu 65C02 -o $@ $<
+	$(CA65) --cpu 65C02 -I $(SRCDIR) -o $@ $<
 
 $(NEO_RAW): $(NEO_OBJS) $(NEO_CFG)
 	@mkdir -p $(dir $@)
