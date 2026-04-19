@@ -16,8 +16,14 @@
 .export platform_gotoxy
 .export platform_putc
 .export platform_random
+.export platform_check_key
+.export platform_play_note
+.export platform_stop_sound
 .export COLOR_GREEN
 .export COLOR_RED
+.export COLOR_YELLOW
+.export COLOR_LGRAY
+.export COLOR_BLUE
 
 ; Direction constants (must match across all files)
 DIR_NONE  = 0
@@ -74,6 +80,18 @@ SCREEN_MODE_320X240_256C = $80
 
 ; VERA interrupt status register
 VERA_ISR = $9F27
+
+; VERA I/O registers for PSG access
+VERA_ADDR_L  = $9F20
+VERA_ADDR_M  = $9F21
+VERA_ADDR_H  = $9F22
+VERA_DATA0   = $9F23
+
+; VERA PSG voice 0 base address in VRAM: $1F9C0
+; VERA_ADDR_H = $11 (bank 1 + auto-increment 1)
+PSG_VOICE0_ADDR_L = $C0
+PSG_VOICE0_ADDR_M = $F9
+PSG_VOICE0_ADDR_H = $11      ; bank 1, auto-increment +1
 
 ; ---------------------------------------------------------------------------
 ; PRG load address
@@ -139,6 +157,12 @@ basic_stub_end:
     jsr GETIN
     cmp #0
     beq @wait
+    rts
+.endproc
+
+.proc platform_check_key
+    ; Non-blocking key read. Returns: A = key (0 if none)
+    jsr GETIN
     rts
 .endproc
 
@@ -339,6 +363,111 @@ basic_stub_end:
 .endproc
 
 ; ---------------------------------------------------------------------------
+; platform_play_note
+;   Plays a note on VERA PSG voice 0.
+;   X = frequency low byte, Y = frequency high byte
+;   A = volume (0-63, upper 2 bits = LR: $C0 = both channels)
+; ---------------------------------------------------------------------------
+
+.proc platform_play_note
+    pha                     ; save volume
+
+    ; Convert Hz (in X/Y) to VERA PSG register value
+    ; Formula: reg = hz + (hz>>2) + (hz>>4) + (hz>>5)
+    ; This approximates hz * 65536/48828 (≈ hz * 1.34375)
+    stx r2L                 ; r2 = original hz
+    sty r2H
+    stx r3L                 ; r3 = result (starts as hz)
+    sty r3H
+
+    ; hz >> 2
+    lsr r2H
+    ror r2L
+    lsr r2H
+    ror r2L
+    ; result += hz>>2
+    clc
+    lda r3L
+    adc r2L
+    sta r3L
+    lda r3H
+    adc r2H
+    sta r3H
+
+    ; hz >> 4 (shift r2 right 2 more)
+    lsr r2H
+    ror r2L
+    lsr r2H
+    ror r2L
+    ; result += hz>>4
+    clc
+    lda r3L
+    adc r2L
+    sta r3L
+    lda r3H
+    adc r2H
+    sta r3H
+
+    ; hz >> 5 (shift r2 right 1 more)
+    lsr r2H
+    ror r2L
+    ; result += hz>>5
+    clc
+    lda r3L
+    adc r2L
+    sta r3L
+    lda r3H
+    adc r2H
+    sta r3H
+
+    ; Set VERA address to PSG voice 0 ($1F9C0)
+    lda #PSG_VOICE0_ADDR_L
+    sta VERA_ADDR_L
+    lda #PSG_VOICE0_ADDR_M
+    sta VERA_ADDR_M
+    lda #PSG_VOICE0_ADDR_H
+    sta VERA_ADDR_H
+
+    ; Write converted freq
+    lda r3L
+    sta VERA_DATA0
+    lda r3H
+    sta VERA_DATA0
+    ; Write volume + LR (both channels)
+    pla
+    ora #$C0                ; LR bits = both channels
+    sta VERA_DATA0
+    ; Write waveform: pulse, width=63
+    lda #$3F
+    sta VERA_DATA0
+    rts
+.endproc
+
+; ---------------------------------------------------------------------------
+; platform_stop_sound
+;   Silences VERA PSG voice 0.
+; ---------------------------------------------------------------------------
+
+.proc platform_stop_sound
+    lda #PSG_VOICE0_ADDR_L
+    sta VERA_ADDR_L
+    lda #PSG_VOICE0_ADDR_M
+    sta VERA_ADDR_M
+    lda #PSG_VOICE0_ADDR_H
+    sta VERA_ADDR_H
+
+    ; freq = 0
+    lda #0
+    sta VERA_DATA0
+    sta VERA_DATA0
+    ; volume = 0
+    sta VERA_DATA0
+    ; waveform = 0
+    sta VERA_DATA0
+    rts
+.endproc
+
+; ---------------------------------------------------------------------------
 
 .segment "RODATA"
 
@@ -347,3 +476,12 @@ COLOR_GREEN: .byte $05
 
 ; X16 palette index for red
 COLOR_RED: .byte $02
+
+; X16 palette index for yellow
+COLOR_YELLOW: .byte $07
+
+; X16 palette index for light grey
+COLOR_LGRAY: .byte $0F
+
+; X16 palette index for blue
+COLOR_BLUE: .byte $06

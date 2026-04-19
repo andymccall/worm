@@ -3,6 +3,7 @@
 .import main
 
 .import gfx_x1, gfx_y1, gfx_x2, gfx_y2
+.import sfx_delay
 
 .export platform_init
 .export platform_exit
@@ -16,8 +17,14 @@
 .export platform_gotoxy
 .export platform_putc
 .export platform_random
+.export platform_check_key
+.export platform_play_note
+.export platform_stop_sound
 .export COLOR_GREEN
 .export COLOR_RED
+.export COLOR_YELLOW
+.export COLOR_LGRAY
+.export COLOR_BLUE
 
 ; Direction constants (must match across all files)
 DIR_NONE  = 0
@@ -72,6 +79,12 @@ API_FN_RND_INT      = $1C
 
 ; Controller functions
 API_FN_READ_CONTROLLER = $01
+
+; Sound functions
+API_GROUP_SOUND      = $08
+API_FN_PLAY_SOUND    = $05
+API_FN_QUEUE_SOUND   = $04
+API_FN_RESET_CHANNEL = $02
 
 ; Controller result bits
 CTRL_LEFT  = $01
@@ -227,6 +240,18 @@ wait_api:
     jsr wait_api
     lda API_PARAMETERS + 0
     beq @loop
+    rts
+.endproc
+
+.proc platform_check_key
+    ; Non-blocking key read. Returns: A = key (0 if none)
+    jsr wait_api
+    lda #API_FN_READ_CHAR
+    sta API_FUNCTION
+    lda #API_GROUP_CONSOLE
+    sta API_COMMAND
+    jsr wait_api
+    lda API_PARAMETERS + 0
     rts
 .endproc
 
@@ -504,11 +529,72 @@ wait_api:
 .endproc
 
 ; ---------------------------------------------------------------------------
+; platform_play_note
+;   Plays a note on Neo6502 sound channel 0.
+;   X = frequency low byte, Y = frequency high byte
+;   A = volume (ignored on Neo6502 - always full volume)
+;   Duration is fixed at a short beep (~4 frames / 66ms)
+; ---------------------------------------------------------------------------
+
+.proc platform_play_note
+    ; Drop one octave (halve frequency) to match X16 pulse wave perception
+    tya                         ; freq_hi
+    lsr                         ; shift high byte right, carry = bit 0
+    tay                         ; Y = new freq_hi
+    txa                         ; freq_lo
+    ror                         ; rotate carry into bit 7, shift right
+    tax                         ; X = new freq_lo
+
+    ; Calculate duration from sfx_delay (frames * 2 centiseconds)
+    lda sfx_delay
+    asl                         ; frames * 2 = approx centiseconds
+    sta neo_snd_duration
+
+    jsr wait_api
+    lda #0
+    sta API_PARAMETERS + 0      ; channel 0
+    stx API_PARAMETERS + 1      ; frequency low (Hz)
+    sty API_PARAMETERS + 2      ; frequency high (Hz)
+    lda neo_snd_duration
+    sta API_PARAMETERS + 3      ; duration low (centiseconds)
+    lda #0
+    sta API_PARAMETERS + 4      ; duration high
+    lda #0                      ; slide type (none)
+    sta API_PARAMETERS + 5
+    lda #0                      ; slide target low
+    sta API_PARAMETERS + 6
+    lda #0                      ; slide target high
+    sta API_PARAMETERS + 7
+    lda #API_FN_QUEUE_SOUND
+    sta API_FUNCTION
+    lda #API_GROUP_SOUND
+    sta API_COMMAND
+    rts
+.endproc
+
+; ---------------------------------------------------------------------------
+; platform_stop_sound
+;   Silences Neo6502 sound channel 0.
+; ---------------------------------------------------------------------------
+
+.proc platform_stop_sound
+    jsr wait_api
+    lda #0
+    sta API_PARAMETERS + 0      ; channel 0
+    lda #API_FN_RESET_CHANNEL
+    sta API_FUNCTION
+    lda #API_GROUP_SOUND
+    sta API_COMMAND
+    rts
+.endproc
+
+; ---------------------------------------------------------------------------
 
 .segment "BSS"
 
-vsync_frame: .res 1
-math_reg:    .res 5          ; type byte + 4 bytes for 32-bit value
+vsync_frame:      .res 1
+math_reg:         .res 5          ; type byte + 4 bytes for 32-bit value
+neo_snd_duration: .res 1          ; calculated note duration in centiseconds
 
 ; ---------------------------------------------------------------------------
 
@@ -519,3 +605,12 @@ COLOR_GREEN: .byte $02
 
 ; Neo6502 palette index for red
 COLOR_RED: .byte $01
+
+; Neo6502 palette index for yellow
+COLOR_YELLOW: .byte $03
+
+; Neo6502 palette index for light grey
+COLOR_LGRAY: .byte $07
+
+; Neo6502 palette index for blue
+COLOR_BLUE: .byte $04
