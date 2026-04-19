@@ -17,8 +17,9 @@
 .import platform_wait_vsync
 .import draw_full_frame
 .import sfx_update
+.import sfx_stop
 .import sfx_play_get_ready
-.import COLOR_GREEN
+.import COLOR_GREEN, COLOR_YELLOW
 
 ; ---------------------------------------------------------------------------
 
@@ -117,6 +118,7 @@
 ; ---------------------------------------------------------------------------
 
 .proc show_quit_confirm
+    jsr sfx_stop
     jsr draw_full_frame
 
     lda COLOR_GREEN
@@ -140,36 +142,57 @@
     ldx #0
 @line2:
     lda quit_line2_text, x
-    beq @options
+    beq @yn_setup
     jsr platform_putc
     inx
     bne @line2
 
-@options:
-    ldx #12
+@yn_setup:
+    ldx #16
     ldy #18
     jsr platform_gotoxy
     ldx #0
-@yes_msg:
-    lda quit_yes_text, x
-    beq @no_setup
-    jsr platform_putc
-    inx
-    bne @yes_msg
-
-@no_setup:
-    ldx #13
-    ldy #20
-    jsr platform_gotoxy
-    ldx #0
-@no_msg:
-    lda quit_no_text, x
+@yn_loop:
+    lda quit_yn_text, x
     beq @input
+    cmp #'['
+    beq @yn_open
+    cmp #']'
+    beq @yn_close
+    phx
     jsr platform_putc
+    plx
     inx
-    bne @no_msg
+    bne @yn_loop
+    bra @input
+
+@yn_open:
+    phx
+    lda COLOR_GREEN
+    jsr platform_set_color
+    lda #'['
+    jsr platform_putc
+    lda COLOR_YELLOW
+    jsr platform_set_color
+    plx
+    inx
+    bne @yn_loop
+    bra @input
+
+@yn_close:
+    phx
+    lda COLOR_GREEN
+    jsr platform_set_color
+    lda #']'
+    jsr platform_putc
+    plx
+    inx
+    bne @yn_loop
+    bra @input
 
 @input:
+    jsr platform_wait_vsync
+    jsr sfx_update
     jsr platform_getkey
     cmp #'Y'
     beq @do_yes
@@ -209,11 +232,8 @@ quit_line1_text:
 quit_line2_text:
     .byte "WANT TO QUIT?", $00
 
-quit_yes_text:
-    .byte "PRESS Y FOR YES", $00
-
-quit_no_text:
-    .byte "PRESS N FOR NO", $00
+quit_yn_text:
+    .byte "[Y] / [N]", $00
 
 ; ---------------------------------------------------------------------------
 
