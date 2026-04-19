@@ -40,29 +40,66 @@ make clean        # Remove all build artifacts
 
 ```
 worm/
-├── cfg/                  # Linker configurations
-│   ├── x16.cfg           #   Commander X16 memory map
-│   └── neo.cfg           #   Neo6502 memory map
+├── cfg/                    # Linker configurations
+│   ├── x16.cfg             #   Commander X16 memory map
+│   └── neo.cfg             #   Neo6502 memory map
 ├── src/
-│   ├── common/           # Shared code (all platforms)
-│   │   └── main.asm      #   Entry point and game loop
-│   ├── x16/              # Commander X16
-│   │   └── platform.asm  #   Startup, KERNAL I/O
-│   └── neo/              # Neo6502
-│       └── platform.asm  #   Startup, API I/O
-├── build/                # Build output (generated)
+│   ├── main.asm            # Entry point
+│   ├── api/                # Shared low-level utilities
+│   │   ├── wm_equates.inc  #   Constants (grid sizes, colors, inputs)
+│   │   ├── wm_drawing.asm  #   Grid-to-pixel math, cell erase
+│   │   └── wm_text.asm     #   Text helpers, border drawing
+│   ├── app/                # Game logic modules
+│   │   ├── game.asm        #   Main game loop and state machine
+│   │   ├── worm.asm        #   Worm movement and body management
+│   │   ├── food.asm        #   Food spawning and collection
+│   │   ├── spider.asm      #   Spider enemy behaviour
+│   │   ├── life.asm        #   Lives and respawn logic
+│   │   ├── sound.asm       #   Sound effect sequencer
+│   │   ├── menu.asm        #   Start screen and menu
+│   │   ├── about.asm       #   About/credits screen
+│   │   ├── demo.asm        #   Attract-mode demo
+│   │   ├── overlays.asm    #   In-game overlays (pause, quit, etc.)
+│   │   └── status_bar.asm  #   HUD: food count, lives
+│   └── system/             # Platform abstraction layer
+│       ├── x16/
+│       │   └── platform.asm  # Commander X16 (VERA, KERNAL)
+│       └── neo/
+│           └── platform.asm  # Neo6502 (API calls)
+├── build/                  # Build output (generated)
 ├── Makefile
 └── README.md
 ```
 
 ## Architecture
 
-Each platform implements a common interface exported from its `platform.asm`:
+The codebase is organised into three tiers:
+
+- **`api/`** — Shared low-level utilities and constants used across the game.
+- **`app/`** — Game logic modules. Each file owns a single responsibility (worm, food, sound, etc.).
+- **`system/`** — Platform abstraction layer. Each platform implements a common HAL interface.
+
+Each platform's `platform.asm` exports the following interface:
 
 | Routine | Purpose |
 |---------|---------|
 | `platform_init` | One-time hardware/system initialisation |
-| `platform_putc` | Print character in A to screen |
 | `platform_exit` | Return to OS or halt |
+| `platform_cls` | Clear the screen |
+| `platform_getkey` | Wait for and return a keypress |
+| `platform_poll_input` | Non-blocking input poll (returns direction) |
+| `platform_check_key` | Check for a specific key without blocking |
+| `platform_set_color` | Set current drawing/text colour |
+| `platform_putc` | Print character at current cursor position |
+| `platform_gotoxy` | Position cursor by character column/row |
+| `platform_gotoxy_pixel` | Position cursor by pixel coordinates |
+| `platform_draw_line` | Draw a line between two points |
+| `platform_draw_filled_rect` | Draw a filled rectangle |
+| `platform_random` | Return a random byte |
+| `platform_wait_vsync` | Wait for vertical blank |
+| `platform_play_note` | Play a note at given frequency/volume |
+| `platform_stop_sound` | Silence audio output |
 
-Shared game logic in `src/common/` calls these routines, keeping platform-specific code isolated. Adding a new platform means creating a new `src/<platform>/platform.asm` and a corresponding linker config in `cfg/`.
+Platform-specific colour constants (`COLOR_GREEN`, `COLOR_RED`, `COLOR_YELLOW`, `COLOR_LGRAY`, `COLOR_BLUE`) are also exported from each platform.
+
+Adding a new platform means creating a new `src/system/<platform>/platform.asm` that exports this interface, plus a corresponding linker config in `cfg/`.
