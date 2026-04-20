@@ -13,6 +13,7 @@
 .export sfx_play_vulnerable
 .export sfx_play_game_over
 .export sfx_play_get_ready
+.export sfx_play_menu_jingle
 .export sfx_update
 .export sfx_stop
 .export sfx_delay
@@ -188,6 +189,12 @@
     jmp sfx_start
 .endproc
 
+.proc sfx_play_menu_jingle
+    lda #<snd_menu_jingle
+    ldx #>snd_menu_jingle
+    jmp sfx_start
+.endproc
+
 ; ---------------------------------------------------------------------------
 
 .segment "RODATA"
@@ -309,6 +316,22 @@ snd_get_ready:
     .byte $FE, 2
     .byte NOTE_C5_LO, NOTE_C5_HI, 4
     .byte NOTE_G4_LO, NOTE_G4_HI, 3
+    .byte NOTE_C5_LO, NOTE_C5_HI, 6
+    .byte $FF
+
+; Menu jingle: bright welcoming fanfare
+snd_menu_jingle:
+    .byte NOTE_C4_LO, NOTE_C4_HI, 3
+    .byte NOTE_E4_LO, NOTE_E4_HI, 3
+    .byte NOTE_G4_LO, NOTE_G4_HI, 3
+    .byte NOTE_C5_LO, NOTE_C5_HI, 4
+    .byte $FE, 2
+    .byte NOTE_G4_LO, NOTE_G4_HI, 3
+    .byte NOTE_A4_LO, NOTE_A4_HI, 3
+    .byte NOTE_B4_LO, NOTE_B4_HI, 3
+    .byte NOTE_C5_LO, NOTE_C5_HI, 6
+    .byte $FE, 3
+    .byte NOTE_E5_LO, NOTE_E5_HI, 4
     .byte NOTE_C5_LO, NOTE_C5_HI, 6
     .byte $FF
 

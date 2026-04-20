@@ -19,9 +19,13 @@
 ; Constants
 ; ---------------------------------------------------------------------------
 
-PATH_LEN      = 40          ; total cells in the loop
+.ifdef __NEO__
+PATH_LEN      = 38          ; total cells in the loop (Neo6502)
+.else
+PATH_LEN      = 40          ; total cells in the loop (X16)
+.endif
 MW_MOVE_DELAY = 10          ; frames between steps
-MW_MIN_OFFSET = 20          ; minimum flower distance (half path)
+MW_MIN_OFFSET = PATH_LEN / 2 ; minimum flower distance (half path)
 
 ; ---------------------------------------------------------------------------
 
@@ -448,7 +452,40 @@ MW_MIN_OFFSET = 20          ; minimum flower distance (half path)
 
 ; Path around menu items (clockwise rectangle)
 ; Menu text occupies cols 16-24, rows 16-22
-; Path: cols 14-23, rows 13-24 (gap on all sides)
+
+.ifdef __NEO__
+
+; Neo6502 path: cols 15-24, rows 14-24
+;
+; Top edge (right):  (15,14)..(24,14) = 10 cells
+; Right edge (down): (24,15)..(24,24) = 10 cells
+; Bottom edge (left): (23,24)..(15,24) =  9 cells
+; Left edge (up):    (15,23)..(15,15) =  9 cells
+; Total = 38 cells
+
+path_x:
+    ; Top edge (right): cols 15..24
+    .byte 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+    ; Right edge (down): col 24
+    .byte 24, 24, 24, 24, 24, 24, 24, 24, 24, 24
+    ; Bottom edge (left): cols 23..15
+    .byte 23, 22, 21, 20, 19, 18, 17, 16, 15
+    ; Left edge (up): col 15
+    .byte 15, 15, 15, 15, 15, 15, 15, 15, 15
+
+path_y:
+    ; Top edge (right): row 14
+    .byte 14, 14, 14, 14, 14, 14, 14, 14, 14, 14
+    ; Right edge (down): rows 15..24
+    .byte 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+    ; Bottom edge (left): row 24
+    .byte 24, 24, 24, 24, 24, 24, 24, 24, 24
+    ; Left edge (up): rows 23..15
+    .byte 23, 22, 21, 20, 19, 18, 17, 16, 15
+
+.else
+
+; X16 path: cols 14-23, rows 13-24
 ;
 ; Top edge (right):  (14,13)..(23,13) = 10 cells
 ; Right edge (down): (23,14)..(23,24) = 11 cells
@@ -475,6 +512,8 @@ path_y:
     .byte 24, 24, 24, 24, 24, 24, 24, 24, 24
     ; Left edge (up): rows 23..14
     .byte 23, 22, 21, 20, 19, 18, 17, 16, 15, 14
+
+.endif
 
 ; ---------------------------------------------------------------------------
 

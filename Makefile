@@ -51,7 +51,7 @@ build-x16: $(X16_OUT)
 
 $(BUILDDIR)/x16/%.o: $(SRCDIR)/%.asm
 	@mkdir -p $(dir $@)
-	$(CA65) --cpu 65C02 -I $(SRCDIR) -o $@ $<
+	$(CA65) --cpu 65C02 -D __X16__ -I $(SRCDIR) -o $@ $<
 
 $(X16_OUT): $(X16_OBJS) $(X16_CFG)
 	@mkdir -p $(dir $@)
@@ -66,7 +66,7 @@ build-neo: $(NEO_OUT)
 
 $(BUILDDIR)/neo/%.o: $(SRCDIR)/%.asm
 	@mkdir -p $(dir $@)
-	$(CA65) --cpu 65C02 -I $(SRCDIR) -o $@ $<
+	$(CA65) --cpu 65C02 -D __NEO__ -I $(SRCDIR) -o $@ $<
 
 $(NEO_RAW): $(NEO_OBJS) $(NEO_CFG)
 	@mkdir -p $(dir $@)
