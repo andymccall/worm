@@ -158,3 +158,9 @@ Select **D** from the main menu (or wait 30 seconds) to watch the computer play 
 - **Keep to open space.** Avoid boxing yourself into corners, especially as spiders fill the playfield.
 - **Use vulnerability wisely.** When spiders turn yellow, prioritise eating the ones that block key routes before your next flower resets them to grey.
 - **Watch your length.** The longer your worm grows, the harder it is to avoid running into yourself. Stay aware of where your tail is.
+
+## Licence
+
+Worm is copyright (c) 2026 Andy McCall.
+
+This work is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).
