@@ -134,25 +134,62 @@ MW_MIN_OFFSET = PATH_LEN / 2 ; minimum flower distance (half path)
 ; ---------------------------------------------------------------------------
 ; spawn_flower
 ;   Places flower at least MW_MIN_OFFSET positions ahead of head.
-;   offset = 18 + (random & 15) → range 18..33
+;   Checks it doesn't land on a worm body segment; retries if so.
 ; ---------------------------------------------------------------------------
 
 .proc spawn_flower
+@retry:
     jsr platform_random
     and #$0F                ; 0..15
     clc
-    adc #MW_MIN_OFFSET      ; 18..33
+    adc #MW_MIN_OFFSET
     clc
     adc mw_head_idx
 @mod:
     cmp #PATH_LEN
-    bcc @store
+    bcc @check_body
     sec
     sbc #PATH_LEN
     bra @mod
-@store:
+
+@check_body:
     sta mw_flower_idx
-    tax
+
+    ; Compute tail index = (head - len + 1 + PATH_LEN) % PATH_LEN
+    lda mw_head_idx
+    sec
+    sbc mw_len
+    clc
+    adc #1
+    clc
+    adc #PATH_LEN
+@mod_tail:
+    cmp #PATH_LEN
+    bcc @got_tail
+    sec
+    sbc #PATH_LEN
+    bra @mod_tail
+@got_tail:
+    tax                     ; X = current path index (tail)
+    lda mw_len
+    sta mw_save_x           ; use as iteration counter
+
+@body_loop:
+    txa
+    cmp mw_flower_idx
+    beq @retry              ; flower on body segment, retry
+
+    ; Advance to next segment toward head
+    inx
+    cpx #PATH_LEN
+    bcc @no_wrap
+    ldx #0
+@no_wrap:
+    dec mw_save_x
+    bne @body_loop
+
+    ; No collision — draw the flower
+    ldx mw_flower_idx
     jsr draw_mw_flower
     rts
 .endproc
