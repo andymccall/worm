@@ -246,15 +246,33 @@ basic_stub_end:
     jsr GETIN
     cmp #KEY_UP
     beq @up
+    cmp #'W'
+    beq @up
+    cmp #'w'
+    beq @up
     cmp #KEY_DOWN
+    beq @down
+    cmp #'S'
+    beq @down
+    cmp #'s'
     beq @down
     cmp #KEY_LEFT
     beq @left
+    cmp #'A'
+    beq @left
+    cmp #'a'
+    beq @left
     cmp #KEY_RIGHT
+    beq @right
+    cmp #'D'
+    beq @right
+    cmp #'d'
     beq @right
     cmp #'P'
     beq @pause
     cmp #'p'
+    beq @pause
+    cmp #$20              ; Space
     beq @pause
     cmp #'Q'
     beq @quit

@@ -367,16 +367,34 @@ wait_api:
     jsr wait_api
     lda API_PARAMETERS + 0
     beq @check_ctrl          ; no key pressed, check controller
+    cmp #'W'
+    beq @up
+    cmp #'w'
+    beq @up
+    cmp #'S'
+    beq @down
+    cmp #'s'
+    beq @down
+    cmp #'A'
+    beq @left
+    cmp #'a'
+    beq @left
+    cmp #'D'
+    beq @right
+    cmp #'d'
+    beq @right
     cmp #'P'
     beq @pause
     cmp #'p'
+    beq @pause
+    cmp #$20              ; Space
     beq @pause
     cmp #'Q'
     beq @quit
     cmp #'q'
     beq @quit
 
-    ; Not P or Q, fall through to controller check
+    ; Unrecognised key, fall through to controller check
 @check_ctrl:
     jsr wait_api
     lda #API_FN_READ_CONTROLLER
