@@ -1,0 +1,218 @@
+================================================================================
+                          WORM - GAME MANUAL
+================================================================================
+
+Worm is a classic snake-style game for the Commander X16 and Neo6502 retro
+computers. Guide your worm around the playfield, eat flowers to grow, avoid
+spiders, and survive as long as you can!
+
+
+LOADING AND RUNNING
+================================================================================
+
+Commander X16
+-------------
+
+Load the WORM.PRG file from your storage device:
+
+    LOAD "WORM.PRG",8,1
+    RUN
+
+Or launch directly in the X16 emulator:
+
+    x16emu -prg WORM.PRG
+
+Neo6502
+-------
+
+Load the worm.neo file using the Neo6502 emulator or flash it to your device:
+
+    neo worm.neo cold
+
+
+MAIN MENU
+================================================================================
+
+When the game starts, a short jingle plays and the main menu appears. A small
+decorative worm circles the menu options while you choose:
+
+    S  -  Start a new game
+    A  -  View the About screen (author and credits)
+    D  -  Watch a demo (attract mode)
+    Q  -  Quit the game
+
+If no key is pressed for 30 seconds, the game automatically enters demo mode.
+
+
+HOW TO PLAY
+================================================================================
+
+Controls
+--------
+
+    W or Up Arrow     -  Move up
+    S or Down Arrow   -  Move down
+    A or Left Arrow   -  Move left
+    D or Right Arrow  -  Move right
+    P or Space        -  Pause the game
+    Q                 -  Quit to menu
+
+The worm cannot reverse direction -- you cannot turn 180 degrees back on
+yourself. For example, if you are moving right, you cannot immediately move
+left.
+
+Objective
+---------
+
+Eat as many flowers as you can without dying. Each flower you eat adds one
+segment to your worm and increases your food counter. As you eat more flowers,
+spiders begin to appear on the playfield, making navigation more dangerous.
+
+The Playfield
+-------------
+
+The game is played on a bordered rectangular grid. The worm, flowers, spiders,
+and life pickups all occupy individual cells on this grid.
+
+The status bar along the top of the screen shows:
+
+    FOOD   -  The number of flowers you have eaten.
+    LIVES  -  Your remaining lives, displayed as red hearts.
+
+
+GLYPHS
+================================================================================
+
+Worm (Green)
+------------
+
+Your worm is drawn in bright green. Each body segment is a rounded shape. The
+worm starts with 3 segments at the centre of the playfield, moving to the
+right.
+
+Flower (Yellow)
+---------------
+
+Flowers appear as a yellow four-leaf clover shape. One flower is on the
+playfield at all times. When you eat it, a new one immediately spawns at a
+random location.
+
+Spider (Grey / Yellow)
+----------------------
+
+Spiders are drawn as a side-on silhouette with a head, body, abdomen, and
+three pairs of legs.
+
+    Grey spiders   -  Dangerous. Touching one costs you a life.
+    Yellow spiders -  Vulnerable. Can be eaten safely. When you eat a
+                      vulnerable spider, it is removed from the playfield.
+
+See the section on Spider Behaviour below for details on when spiders appear
+and become vulnerable.
+
+Life Pickup (Red Heart)
+-----------------------
+
+Occasionally a red heart appears on the playfield. Collect it to gain an extra
+life (up to a maximum of 3).
+
+
+LIVES
+================================================================================
+
+You start the game with 3 lives, and can hold a maximum of 3 at any time.
+
+You lose a life when:
+
+    - The worm hits the border wall.
+    - The worm runs into its own body.
+    - The worm touches a grey (non-vulnerable) spider.
+
+When you lose a life:
+
+    - There is a brief pause before you respawn.
+    - Your worm resets to 3 segments at the centre of the playfield.
+    - All existing food, spiders, and pickups remain on the field.
+    - The food counter is preserved -- your progress is not lost.
+
+When your last life is lost, "GAME OVER!" is displayed for a few seconds
+before returning to the main menu.
+
+Extra Lives
+-----------
+
+After every 20 flowers eaten, a red heart life pickup spawns on the playfield
+(provided you have fewer than 3 lives). Collect it to gain one extra life.
+
+
+SPIDER BEHAVIOUR
+================================================================================
+
+Spiders are the primary hazard in Worm. They do not move -- they sit in fixed
+positions on the playfield -- but they steadily fill up the grid, making
+navigation increasingly difficult.
+
+Spawning
+--------
+
+A new spider appears every 10 flowers you eat. The playfield can hold up to
+8 spiders at once. If all 8 slots are full, the oldest spider is removed and
+replaced with a new one in a different location.
+
+Vulnerability
+-------------
+
+When you eat food while already at maximum lives (3), all spiders on the field
+turn yellow and become vulnerable. While vulnerable:
+
+    - Touching a spider removes it from the playfield instead of killing you.
+    - Vulnerability lasts until you eat the next flower, at which point any
+      remaining spiders turn grey again.
+
+This creates a risk/reward dynamic -- you can use vulnerability windows to
+clear dangerous spiders from the field, but you need to act quickly before
+eating the next flower ends the window.
+
+
+PAUSE AND QUIT
+================================================================================
+
+Pausing
+-------
+
+Press P or Space at any time during gameplay to pause. The screen displays
+"GAME PAUSED" and the game freezes. Press any key to resume.
+
+Quitting
+--------
+
+Press Q during gameplay to bring up a quit confirmation: "ARE YOU SURE?" with
+[Y] / [N] options. Press Y to return to the main menu, or N to continue
+playing.
+
+
+DEMO MODE
+================================================================================
+
+Select D from the main menu (or wait 30 seconds) to watch the computer play
+the game automatically. The demo follows all the same rules as normal gameplay.
+Press any key to return to the main menu.
+
+
+TIPS
+================================================================================
+
+    - Plan ahead. The worm moves at a steady pace -- use the time between
+      moves to look ahead and find a safe path to the flower.
+
+    - Keep to open space. Avoid boxing yourself into corners, especially as
+      spiders fill the playfield.
+
+    - Use vulnerability wisely. When spiders turn yellow, prioritise eating
+      the ones that block key routes before your next flower resets them to
+      grey.
+
+    - Watch your length. The longer your worm grows, the harder it is to
+      avoid running into yourself. Stay aware of where your tail is.
+
+================================================================================
