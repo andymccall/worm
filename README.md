@@ -1,6 +1,10 @@
 # Worm
 
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+
 A cross-platform snake-style game written in 6502 assembly language for the Commander X16 and Neo6502 retro computers.
+
+**Play it on itch.io:** [andymccall.itch.io/worm](https://andymccall.itch.io/worm)
 
 ## Screenshots
 
@@ -39,10 +43,20 @@ make run-x16      # Build and launch in x16emu
 make run-neo      # Build and launch in Neo6502 emulator
 ```
 
+## Release Packaging
+
+```sh
+make release-x16  # Create release/worm-x16.zip
+make release-neo  # Create release/worm-neo.zip
+make release-all  # Create both release zip files
+```
+
+Each zip contains the game binary, MANUAL.TXT, and LICENSE.TXT.
+
 ## Cleaning
 
 ```sh
-make clean        # Remove all build artifacts
+make clean        # Remove all build artifacts and release files
 ```
 
 ## Game Manual
@@ -57,7 +71,8 @@ worm/
 │   ├── x16.cfg             #   Commander X16 memory map
 │   └── neo.cfg             #   Neo6502 memory map
 ├── docs/                   # Documentation
-│   ├── MANUAL.md           #   Game instruction manual
+│   ├── MANUAL.md           #   Game instruction manual (Markdown)
+│   ├── MANUAL.TXT          #   Game instruction manual (plain text)
 │   └── images/             #   Screenshots
 ├── src/
 │   ├── main.asm            # Entry point and game flow dispatch
@@ -84,8 +99,10 @@ worm/
 │       └── neo/
 │           └── platform.asm  # Neo6502 (API calls)
 ├── build/                  # Build output (generated)
+├── release/                # Release zip files (generated)
 ├── Makefile
-└── README.md
+├── README.md
+└── LICENSE.txt
 ```
 
 ## Architecture
@@ -117,12 +134,16 @@ Each platform's `platform.asm` exports the following routines:
 | `platform_random` | Return a random byte in A |
 | `platform_wait_vsync` | Wait for vertical blank |
 | `platform_play_note` | Play a note at given frequency/volume |
+| `platform_stop_sound` | Silence audio output |
+
+Adding a new platform means creating a new `src/system/<platform>/platform.asm` that exports this interface, plus a corresponding linker config in `cfg/`.
 
 ### Conditional Assembly
 
 Platform-specific code paths use `.ifdef __X16__` / `.ifdef __NEO__` guards. The Makefile passes the appropriate `-D` flag for each build target. This is currently used for:
 
 - Menu worm path coordinates (slightly different grid alignment per platform)
+- Platform-specific colour constants (`COLOR_GREEN`, `COLOR_RED`, `COLOR_YELLOW`, `COLOR_LGRAY`, `COLOR_BLUE`) exported from each platform
 
 ### Key Design Decisions
 
@@ -134,9 +155,6 @@ Platform-specific code paths use `.ifdef __X16__` / `.ifdef __NEO__` guards. The
 
 ## Licence
 
-See repository for licence details.
-| `platform_stop_sound` | Silence audio output |
+This work is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).
 
-Platform-specific colour constants (`COLOR_GREEN`, `COLOR_RED`, `COLOR_YELLOW`, `COLOR_LGRAY`, `COLOR_BLUE`) are also exported from each platform.
-
-Adding a new platform means creating a new `src/system/<platform>/platform.asm` that exports this interface, plus a corresponding linker config in `cfg/`.
+Copyright (c) 2026 Andy McCall

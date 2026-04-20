@@ -13,6 +13,7 @@ NEO_HOME   = ~/development/tools/neo6502
 SRCDIR     = src
 CFGDIR     = cfg
 BUILDDIR   = build
+RELEASEDIR = release
 
 # ---------------------------------------------------------------------------
 # Shared sources (api + app + main)
@@ -41,7 +42,7 @@ NEO_OUT    = $(BUILDDIR)/neo/worm.neo
 # ---------------------------------------------------------------------------
 # Targets
 # ---------------------------------------------------------------------------
-.PHONY: all build-x16 build-neo run-x16 run-neo clean
+.PHONY: all build-x16 build-neo run-x16 run-neo release-x16 release-neo release-all clean
 
 all: build-x16 build-neo
 
@@ -85,4 +86,24 @@ run-neo: build-neo
 # --- Housekeeping ---------------------------------------------------------
 
 clean:
-	rm -rf $(BUILDDIR)
+	rm -rf $(BUILDDIR) $(RELEASEDIR)
+
+# --- Release packaging ----------------------------------------------------
+
+release-all: release-x16 release-neo
+
+release-x16: build-x16
+	@mkdir -p $(RELEASEDIR)/worm-x16
+	cp $(X16_OUT) $(RELEASEDIR)/worm-x16/WORM.PRG
+	cp docs/MANUAL.TXT $(RELEASEDIR)/worm-x16/MANUAL.TXT
+	cp LICENSE.txt $(RELEASEDIR)/worm-x16/LICENSE.TXT
+	cd $(RELEASEDIR) && zip -r worm-x16.zip worm-x16/
+	rm -rf $(RELEASEDIR)/worm-x16
+
+release-neo: build-neo
+	@mkdir -p $(RELEASEDIR)/worm-neo
+	cp $(NEO_OUT) $(RELEASEDIR)/worm-neo/worm.neo
+	cp docs/MANUAL.TXT $(RELEASEDIR)/worm-neo/manual.txt
+	cp LICENSE.txt $(RELEASEDIR)/worm-neo/license.txt
+	cd $(RELEASEDIR) && zip -r worm-neo.zip worm-neo/
+	rm -rf $(RELEASEDIR)/worm-neo

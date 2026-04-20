@@ -1,3 +1,7 @@
+; Worm - (c) 2026 Andy McCall
+; Licensed under CC BY-NC 4.0
+; https://creativecommons.org/licenses/by-nc/4.0/
+
 ; ---------------------------------------------------------------------------
 ; sound.asm - Non-blocking sound sequencer and sound effect triggers
 ; ---------------------------------------------------------------------------
