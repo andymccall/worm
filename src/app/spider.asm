@@ -315,19 +315,16 @@
 
 ; ---------------------------------------------------------------------------
 ; draw_spider_shape
-;   Draws a spider at pixel position (cell_px, cell_py).
-;   8x8 pixel art: body blob with legs.
+;   Draws a side-on spider (facing right) at pixel position (cell_px, cell_py).
+;   8x8 pixel art using filled rectangles.
 ;   Assumes color is already set.
 ; ---------------------------------------------------------------------------
 
 .proc draw_spider_shape
-    ; Body center: (px+2, py+2) to (px+5, py+5)
-    clc
+    ; Head: (px+0, py+2) to (px+1, py+3)
     lda cell_px
-    adc #2
     sta gfx_x1
     lda cell_px+1
-    adc #0
     sta gfx_x1+1
 
     clc
@@ -340,7 +337,7 @@
 
     clc
     lda cell_px
-    adc #5
+    adc #1
     sta gfx_x2
     lda cell_px+1
     adc #0
@@ -348,7 +345,7 @@
 
     clc
     lda cell_py
-    adc #5
+    adc #3
     sta gfx_y2
     lda cell_py+1
     adc #0
@@ -356,10 +353,10 @@
 
     jsr platform_draw_filled_rect
 
-    ; Head: (px+3, py+1) to (px+4, py+1)
+    ; Body: (px+2, py+1) to (px+5, py+4)
     clc
     lda cell_px
-    adc #3
+    adc #2
     sta gfx_x1
     lda cell_px+1
     adc #0
@@ -375,15 +372,15 @@
 
     clc
     lda cell_px
+    adc #5
+    sta gfx_x2
+    lda cell_px+1
+    adc #0
+    sta gfx_x2+1
+
+    clc
+    lda cell_py
     adc #4
-    sta gfx_x2
-    lda cell_px+1
-    adc #0
-    sta gfx_x2+1
-
-    clc
-    lda cell_py
-    adc #1
     sta gfx_y2
     lda cell_py+1
     adc #0
@@ -391,42 +388,10 @@
 
     jsr platform_draw_filled_rect
 
-    ; Left legs top: (px, py+2) to (px+1, py+3)
-    lda cell_px
-    sta gfx_x1
-    lda cell_px+1
-    sta gfx_x1+1
-
-    clc
-    lda cell_py
-    adc #2
-    sta gfx_y1
-    lda cell_py+1
-    adc #0
-    sta gfx_y1+1
-
+    ; Abdomen: (px+5, py+2) to (px+7, py+3)
     clc
     lda cell_px
-    adc #1
-    sta gfx_x2
-    lda cell_px+1
-    adc #0
-    sta gfx_x2+1
-
-    clc
-    lda cell_py
-    adc #3
-    sta gfx_y2
-    lda cell_py+1
-    adc #0
-    sta gfx_y2+1
-
-    jsr platform_draw_filled_rect
-
-    ; Right legs top: (px+6, py+2) to (px+7, py+3)
-    clc
-    lda cell_px
-    adc #6
+    adc #5
     sta gfx_x1
     lda cell_px+1
     adc #0
@@ -458,42 +423,10 @@
 
     jsr platform_draw_filled_rect
 
-    ; Left legs bottom: (px, py+4) to (px+1, py+5)
-    lda cell_px
-    sta gfx_x1
-    lda cell_px+1
-    sta gfx_x1+1
-
-    clc
-    lda cell_py
-    adc #4
-    sta gfx_y1
-    lda cell_py+1
-    adc #0
-    sta gfx_y1+1
-
+    ; Front legs: (px+1, py+5) to (px+2, py+5)
     clc
     lda cell_px
     adc #1
-    sta gfx_x2
-    lda cell_px+1
-    adc #0
-    sta gfx_x2+1
-
-    clc
-    lda cell_py
-    adc #5
-    sta gfx_y2
-    lda cell_py+1
-    adc #0
-    sta gfx_y2+1
-
-    jsr platform_draw_filled_rect
-
-    ; Right legs bottom: (px+6, py+4) to (px+7, py+5)
-    clc
-    lda cell_px
-    adc #6
     sta gfx_x1
     lda cell_px+1
     adc #0
@@ -501,7 +434,7 @@
 
     clc
     lda cell_py
-    adc #4
+    adc #5
     sta gfx_y1
     lda cell_py+1
     adc #0
@@ -509,7 +442,7 @@
 
     clc
     lda cell_px
-    adc #7
+    adc #2
     sta gfx_x2
     lda cell_px+1
     adc #0
@@ -525,7 +458,36 @@
 
     jsr platform_draw_filled_rect
 
-    ; Tail: (px+3, py+6) to (px+4, py+6)
+    ; Front foot: (px+0, py+6)
+    lda cell_px
+    sta gfx_x1
+    lda cell_px+1
+    sta gfx_x1+1
+
+    clc
+    lda cell_py
+    adc #6
+    sta gfx_y1
+    lda cell_py+1
+    adc #0
+    sta gfx_y1+1
+
+    lda cell_px
+    sta gfx_x2
+    lda cell_px+1
+    sta gfx_x2+1
+
+    clc
+    lda cell_py
+    adc #6
+    sta gfx_y2
+    lda cell_py+1
+    adc #0
+    sta gfx_y2+1
+
+    jsr platform_draw_filled_rect
+
+    ; Mid legs: (px+3, py+5) to (px+4, py+5)
     clc
     lda cell_px
     adc #3
@@ -536,7 +498,7 @@
 
     clc
     lda cell_py
-    adc #6
+    adc #5
     sta gfx_y1
     lda cell_py+1
     adc #0
@@ -545,6 +507,76 @@
     clc
     lda cell_px
     adc #4
+    sta gfx_x2
+    lda cell_px+1
+    adc #0
+    sta gfx_x2+1
+
+    clc
+    lda cell_py
+    adc #5
+    sta gfx_y2
+    lda cell_py+1
+    adc #0
+    sta gfx_y2+1
+
+    jsr platform_draw_filled_rect
+
+    ; Rear legs: (px+5, py+5) to (px+6, py+5)
+    clc
+    lda cell_px
+    adc #5
+    sta gfx_x1
+    lda cell_px+1
+    adc #0
+    sta gfx_x1+1
+
+    clc
+    lda cell_py
+    adc #5
+    sta gfx_y1
+    lda cell_py+1
+    adc #0
+    sta gfx_y1+1
+
+    clc
+    lda cell_px
+    adc #6
+    sta gfx_x2
+    lda cell_px+1
+    adc #0
+    sta gfx_x2+1
+
+    clc
+    lda cell_py
+    adc #5
+    sta gfx_y2
+    lda cell_py+1
+    adc #0
+    sta gfx_y2+1
+
+    jsr platform_draw_filled_rect
+
+    ; Rear foot: (px+7, py+6)
+    clc
+    lda cell_px
+    adc #7
+    sta gfx_x1
+    lda cell_px+1
+    adc #0
+    sta gfx_x1+1
+
+    clc
+    lda cell_py
+    adc #6
+    sta gfx_y1
+    lda cell_py+1
+    adc #0
+    sta gfx_y1+1
+
+    clc
+    lda cell_px
+    adc #7
     sta gfx_x2
     lda cell_px+1
     adc #0

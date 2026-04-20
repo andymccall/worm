@@ -13,19 +13,18 @@
 .import platform_getkey
 .import platform_set_color
 .import draw_border
+.import draw_worm_title
 .import COLOR_GREEN, COLOR_RED, COLOR_BLUE
 
 ; ---------------------------------------------------------------------------
 
 ; About screen text positions (character column, row)
-ABOUT_TITLE_X    = 17
-ABOUT_TITLE_Y    = 5
 ABOUT_AUTHOR_X   = 15
-ABOUT_AUTHOR_Y   = 10
+ABOUT_AUTHOR_Y   = 12
 ABOUT_EMAIL_X    = 11
-ABOUT_EMAIL_Y    = 12
+ABOUT_EMAIL_Y    = 14
 ABOUT_REPO_X     = 7
-ABOUT_REPO_Y     = 14
+ABOUT_REPO_Y     = 16
 ABOUT_PROMPT_X   = 15
 ABOUT_PROMPT_Y   = 23
 
@@ -46,20 +45,10 @@ ABOUT_PROMPT_Y   = 23
 
     jsr draw_border
 
-    ; Title in red
-    lda COLOR_RED
-    jsr platform_set_color
-
-    ldx #ABOUT_TITLE_X
-    ldy #ABOUT_TITLE_Y
-    jsr platform_gotoxy
-    ldx #0
-@title:
-    lda title_text, x
-    beq @author
-    jsr platform_putc
-    inx
-    bne @title
+    ; Title using worm body segments
+    ldx #9
+    ldy #4
+    jsr draw_worm_title
 
 @author:
     lda COLOR_GREEN
@@ -123,9 +112,6 @@ ABOUT_PROMPT_Y   = 23
 ; ---------------------------------------------------------------------------
 
 .segment "RODATA"
-
-title_text:
-    .byte "W O R M", $00
 
 about_author:
     .byte "ANDY MCCALL", $00

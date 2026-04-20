@@ -16,6 +16,10 @@
 .import platform_set_color
 .import draw_border
 .import draw_status_bar
+.import draw_worm_title
+.import menu_worm_init
+.import menu_worm_update
+.import sfx_update
 .import COLOR_GREEN, COLOR_BLUE, COLOR_YELLOW
 
 ; ---------------------------------------------------------------------------
@@ -46,17 +50,10 @@ COLOR_MENU_KEY = COLOR_YELLOW
     ; Draw status bar (Food count + Lives)
     jsr draw_status_bar
 
-    ; --- Title "W O R M" centered at row 10 ---
-    ldx #17
-    ldy #10
-    jsr platform_gotoxy
-    ldx #0
-@title:
-    lda title_text, x
-    beq @menu
-    jsr platform_putc
-    inx
-    bne @title
+    ; --- Title "WORM" drawn with body segments at row 5 ---
+    ldx #9
+    ldy #5
+    jsr draw_worm_title
 
     ; --- Menu options ---
 @menu:
@@ -99,6 +96,9 @@ COLOR_MENU_KEY = COLOR_YELLOW
     sta menu_ptr+1
     jsr print_menu_item
 
+    ; --- Init menu worm ---
+    jsr menu_worm_init
+
     ; --- Flush keyboard buffer ---
 @flush:
     jsr platform_check_key
@@ -114,6 +114,8 @@ COLOR_MENU_KEY = COLOR_YELLOW
 
 @input:
     jsr platform_wait_vsync
+    jsr sfx_update
+    jsr menu_worm_update
     jsr platform_check_key
     cmp #0
     beq @dec_timer
@@ -219,9 +221,6 @@ COLOR_MENU_KEY = COLOR_YELLOW
 ; ---------------------------------------------------------------------------
 
 .segment "RODATA"
-
-title_text:
-    .byte "W O R M", $00
 
 start_text:
     .byte "[S] START", $00

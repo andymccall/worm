@@ -9,6 +9,7 @@
 .import platform_init
 .import platform_exit
 .import sfx_stop
+.import sfx_play_menu_jingle
 .import show_start_screen
 .import show_about_screen
 .import game_run
@@ -20,6 +21,7 @@
 .proc main
     jsr platform_init
     jsr game_reset_stats
+    jsr sfx_play_menu_jingle
 
 @loop:
     jsr game_reset_stats
