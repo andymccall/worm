@@ -29,7 +29,7 @@
 .import life_active, life_x, life_y
 .import COLOR_YELLOW, COLOR_LGRAY
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 ; ---------------------------------------------------------------------------
 

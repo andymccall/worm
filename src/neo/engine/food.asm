@@ -25,7 +25,7 @@
 .import spider_x, spider_y, spider_count
 .import COLOR_YELLOW
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 ; ---------------------------------------------------------------------------
 

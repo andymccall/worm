@@ -25,7 +25,7 @@
 .import food_count, lives
 .import COLOR_GREEN, COLOR_RED
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 ; ---------------------------------------------------------------------------
 

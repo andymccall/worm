@@ -27,7 +27,7 @@
 .import check_pos_vs_spiders_life
 .import COLOR_RED
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 ; ---------------------------------------------------------------------------
 

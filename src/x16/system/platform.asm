@@ -13,7 +13,7 @@
 
 .import gfx_x1, gfx_y1, gfx_x2, gfx_y2
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 .export platform_init
 .export platform_exit

@@ -20,7 +20,7 @@
 .import gfx_x1, gfx_y1, gfx_x2, gfx_y2
 .import COLOR_GREEN
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 ; ---------------------------------------------------------------------------
 

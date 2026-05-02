@@ -15,32 +15,39 @@ A cross-platform snake-style game written in 6502 assembly language for the Comm
 
 ## Supported Platforms
 
-| Platform | CPU | Output |
-|----------|-----|--------|
-| Commander X16 | 65C02 | `WORM.PRG` |
-| Neo6502 | 65C02 | `worm.neo` |
+| Platform | CPU | Assembler | Output |
+|----------|-----|-----------|--------|
+| Commander X16 | 65C02 | `ca65` / `ld65` | `WORM.PRG` |
+| Neo6502 | 65C02 | `ca65` / `ld65` | `worm.neo` |
+| PC Engine / TurboGrafx-16 | HuC6280 | `pceas` | `worm.pce` (stub — title screen only) |
+
+Each platform has its own independent ASM source tree under `src/<platform>/`. No code is shared between platforms — the assemblers don't share syntax (cc65/ca65 vs PCEAS), and the hardware abstractions diverge enough (linear bitmap on X16/Neo vs tile-grid VDC on PCE) that a common layer would be more friction than value.
 
 ## Prerequisites
 
-- [cc65](https://cc65.github.io/) toolchain (`ca65`, `ld65`)
+- [cc65](https://cc65.github.io/) toolchain (`ca65`, `ld65`) — X16 + Neo builds
+- [HuC](https://github.com/pce-devel/huc) — provides `pceas` for the PCE build
 - [x16emu](https://www.commanderx16.com/) — Commander X16 emulator
 - [Neo6502 emulator](https://www.olimex.com/Products/Retro-Computers/Neo6502/) (`neo`) and `exec.zip` conversion tool
+- [Geargrafx](https://github.com/drhelius/Geargrafx) — PC Engine emulator with PCEAS-symbol-aware debugging
 
 ## Building
 
 ```sh
 make build-x16    # Build Commander X16 binary
 make build-neo    # Build Neo6502 binary
+make build-pce    # Build PC Engine ROM (stub)
 make all          # Build all platforms
 ```
 
-Each platform is assembled with its own define (`-D __X16__` or `-D __NEO__`), enabling conditional assembly where platform-specific behaviour is needed.
+Each 6502 platform is assembled with its own define (`-D __X16__` or `-D __NEO__`), but because the source trees are now independent the defines are increasingly cosmetic — left in place for the few `.ifdef` blocks that remain in the menu worm path coordinates.
 
 ## Running
 
 ```sh
 make run-x16      # Build and launch in x16emu
 make run-neo      # Build and launch in Neo6502 emulator
+make run-pce      # Build and launch in Geargrafx (loads .sym for source-level debug)
 ```
 
 ## Release Packaging
@@ -48,7 +55,8 @@ make run-neo      # Build and launch in Neo6502 emulator
 ```sh
 make release-x16  # Create release/worm-x16.zip
 make release-neo  # Create release/worm-neo.zip
-make release-all  # Create both release zip files
+make release-pce  # Create release/worm-pce.zip
+make release-all  # Create all three release zip files
 ```
 
 Each zip contains the game binary, MANUAL.TXT, and LICENSE.TXT.
@@ -67,39 +75,28 @@ See [docs/MANUAL.md](docs/MANUAL.md) for the player-facing game manual, includin
 
 ```
 worm/
-├── cfg/                    # Linker configurations
-│   ├── x16.cfg             #   Commander X16 memory map
-│   └── neo.cfg             #   Neo6502 memory map
-├── docs/                   # Documentation
-│   ├── MANUAL.md           #   Game instruction manual (Markdown)
-│   ├── MANUAL.TXT          #   Game instruction manual (plain text)
-│   └── images/             #   Screenshots
+├── cfg/                       # Linker configurations (cc65)
+│   ├── x16.cfg                #   Commander X16 memory map
+│   └── neo.cfg                #   Neo6502 memory map
+├── docs/                      # Documentation
+│   ├── MANUAL.md              #   Game instruction manual (Markdown)
+│   ├── MANUAL.TXT             #   Game instruction manual (plain text)
+│   └── images/                #   Screenshots
 ├── src/
-│   ├── main.asm            # Entry point and game flow dispatch
-│   ├── api/                # Shared low-level utilities
-│   │   ├── wm_equates.inc  #   Constants (grid sizes, colors, inputs)
-│   │   ├── wm_drawing.asm  #   Grid-to-pixel math, cell erase
-│   │   └── wm_text.asm     #   Text helpers, border drawing, title renderer
-│   ├── app/                # Game logic modules
-│   │   ├── game.asm        #   Main game loop and state machine
-│   │   ├── worm.asm        #   Worm movement, body array, self-collision
-│   │   ├── food.asm        #   Food spawning, collection, overlap checks
-│   │   ├── spider.asm      #   Spider spawning, vulnerability, circular buffer
-│   │   ├── life.asm        #   Lives, extra life pickups, respawn
-│   │   ├── sound.asm       #   Frame-based sound effect sequencer
-│   │   ├── menu.asm        #   Start screen and menu input
-│   │   ├── menu_worm.asm   #   Decorative worm circling the menu
-│   │   ├── about.asm       #   About/credits screen
-│   │   ├── demo.asm        #   AI-controlled attract-mode demo
-│   │   ├── overlays.asm    #   Pause, quit confirmation, game over screens
-│   │   └── status_bar.asm  #   HUD: food count and lives display
-│   └── system/             # Platform abstraction layer (HAL)
-│       ├── x16/
-│       │   └── platform.asm  # Commander X16 (VERA, KERNAL)
-│       └── neo/
-│           └── platform.asm  # Neo6502 (API calls)
-├── build/                  # Build output (generated)
-├── release/                # Release zip files (generated)
+│   ├── x16/                   # Commander X16 (ca65, 65C02)
+│   │   ├── app/               #   main, menu, menu_worm, demo, about, overlays
+│   │   ├── engine/            #   game, worm, food, spider, life, sound,
+│   │   │                      #   status_bar, wm_drawing, wm_text
+│   │   └── system/            #   platform.asm (VERA + KERNAL HAL),
+│   │                          #   wm_equates.inc
+│   ├── neo/                   # Neo6502 (ca65, 65C02) - same sub-tree as x16,
+│   │                          #   neo HAL swapped in
+│   └── pce/                   # PC Engine / TG-16 (PCEAS, HuC6280)
+│       ├── app/               #   boot.asm (currently a stub: WORM title +
+│       │                      #   "work in progress" message)
+│       └── system/            #   platform.inc (VRAM layout)
+├── build/                     # Build output (generated)
+├── release/                   # Release zip files (generated)
 ├── Makefile
 ├── README.md
 └── LICENSE.txt
@@ -107,11 +104,13 @@ worm/
 
 ## Architecture
 
-The codebase is organised into three tiers:
+Each platform's source tree follows a three-tier layout:
 
-- **`api/`** — Shared low-level utilities and constants used across the game. Grid-to-pixel math, text rendering, border drawing, and the bitmap-based title renderer live here.
-- **`app/`** — Game logic modules. Each file owns a single responsibility (worm movement, food spawning, spider management, sound sequencing, etc.). Modules communicate through exported symbols and shared variables.
-- **`system/`** — Platform abstraction layer. Each platform implements a common HAL interface, isolating all hardware-specific code. The game logic never calls platform APIs directly — only the HAL routines.
+- **`app/`** — Top-level entry point + per-screen modules (title/menu, demo, about, pause/quit/game-over overlays).
+- **`engine/`** — Portable game systems within a platform: game loop, worm movement, food/spider/life management, sound sequencing, status bar, and shared drawing helpers (`wm_drawing`, `wm_text`).
+- **`system/`** — Hardware-facing HAL + project equates. Each platform's `platform.asm` implements the same logical interface (see below); `wm_equates.inc` holds the cross-module constants (grid layout, direction codes, etc).
+
+The X16 and Neo trees are duplicates by design — the cc65/ca65 toolchain can build either, but the hardware code under `system/` is platform-specific and the engine code occasionally branches on `.ifdef __X16__` / `.ifdef __NEO__`. The PCE tree is independent because PCEAS doesn't share syntax with ca65.
 
 ### Platform HAL Interface
 
@@ -136,7 +135,7 @@ Each platform's `platform.asm` exports the following routines:
 | `platform_play_note` | Play a note at given frequency/volume |
 | `platform_stop_sound` | Silence audio output |
 
-Adding a new platform means creating a new `src/system/<platform>/platform.asm` that exports this interface, plus a corresponding linker config in `cfg/`.
+Adding a new platform means creating a new `src/<platform>/` tree (mirroring `src/x16/`'s `app/` + `engine/` + `system/` layout), with `system/platform.asm` exporting this interface, plus a corresponding linker config in `cfg/` if the toolchain needs one.
 
 ### Conditional Assembly
 

@@ -49,7 +49,7 @@
 
 .import COLOR_GREEN
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 ; ---------------------------------------------------------------------------
 

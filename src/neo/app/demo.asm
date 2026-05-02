@@ -41,7 +41,7 @@
 .import sfx_play_spider_appear, sfx_play_spider_eat
 .import sfx_play_life_lost, sfx_play_vulnerable
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 ; Reuse game_init from game.asm
 .import game_init

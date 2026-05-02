@@ -14,7 +14,7 @@
 .export cell_x, cell_y, cell_px, cell_py
 .export gfx_x1, gfx_y1, gfx_x2, gfx_y2
 
-.include "api/wm_equates.inc"
+.include "system/wm_equates.inc"
 
 .import platform_set_color
 .import platform_draw_filled_rect
