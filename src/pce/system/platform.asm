@@ -363,6 +363,172 @@ bat_addr_for_cell:
 
 
 ; ===========================================================================
+; PC Engine PSG sound
+; ===========================================================================
+;
+; The HuC6280's built-in PSG has 6 channels. We use channel 0 for SFX -
+; programmed once at boot to play a square-ish waveform, then driven by
+; sound.asm's frame sequencer which queues notes via platform_play_note.
+;
+; PSG register summary (selected via $0800):
+;   $0800  channel select (0..5)
+;   $0801  master balance (LR nibbles)
+;   $0802  fine freq (low 8 bits of 12-bit divider)
+;   $0803  rough freq (high 4 bits of divider)
+;   $0804  enable + DDA + 5-bit volume (bit 7 = channel on)
+;   $0805  channel balance (LR nibbles)
+;   $0806  waveform sample / DDA data
+;
+; Frequency: divider = 3580000 / (32 * Hz) = 111875 / Hz, fits in 12 bits
+; for the worm's note range (C3..A5).
+
+PSG_CH_SEL      = $0800
+PSG_MASTER_BAL  = $0801
+PSG_FREQ_LO     = $0802
+PSG_FREQ_HI     = $0803
+PSG_CTRL        = $0804
+PSG_BAL         = $0805
+PSG_DATA        = $0806
+
+
+; ===========================================================================
+;
+; psg_init - One-shot at boot. Selects channel 0, loads a 32-sample
+; square waveform into its buffer, sets master + channel balances. The
+; channel is left disabled - platform_play_note enables it on demand.
+;
+; ===========================================================================
+
+psg_init:
+        ; Master volume: full both channels.
+        lda     #$FF
+        sta     PSG_MASTER_BAL
+
+        ; Select channel 0.
+        stz     PSG_CH_SEL
+
+        ; Reset waveform write index: ch off + DDA on briefly, then DDA off
+        ; so writes to PSG_DATA go to the waveform buffer.
+        lda     #%01000000              ; ch off, DDA on -> resets index
+        sta     PSG_CTRL
+        stz     PSG_CTRL                ; ch off, DDA off -> waveform write
+
+        ; Per-channel balance: full both.
+        lda     #$FF
+        sta     PSG_BAL
+
+        ; Write 32 samples of the waveform.
+        ldx     #0
+.wave_loop:
+        lda     psg_waveform, x
+        sta     PSG_DATA
+        inx
+        cpx     #32
+        bcc     .wave_loop
+        rts
+
+
+; ===========================================================================
+;
+; platform_play_note - Start a note on PSG channel 0.
+;
+; In:    X = freq lo, Y = freq hi (Hz, 16-bit)
+;        A = volume 0..63 (we mask down to 5 bits = PCE volume range)
+;
+; The note plays until platform_stop_sound is called or another
+; platform_play_note overrides it. The 12-bit PSG divider is computed
+; on-the-fly via repeated subtraction: divider = 111875 / freq.
+; Approximately 1024 iterations max, ~30 cycles each = ~3.6ms at 7.16MHz.
+; Acceptable since we only call it on note transitions (a handful per
+; second) and not from inside vblank handlers.
+;
+; ===========================================================================
+
+platform_play_note:
+        ; Save volume.
+        sta     <psg_vol
+
+        ; Stash freq into psg_freq.
+        stx     <psg_freq + 0
+        sty     <psg_freq + 1
+
+        ; Initialise 24-bit accumulator to 111875 = $01B543.
+        lda     #<111875
+        sta     <psg_acc + 0
+        lda     #>111875
+        sta     <psg_acc + 1
+        lda     #(111875 >> 16)         ; high byte = 1
+        sta     <psg_acc + 2
+
+        ; Initialise divider to 0.
+        stz     <psg_div + 0
+        stz     <psg_div + 1
+
+.div_loop:
+        ; If acc < freq, we're done. acc is 24-bit; check high byte first
+        ; (any non-zero high byte means definitely >= 16-bit freq).
+        lda     <psg_acc + 2
+        bne     .can_subtract
+        lda     <psg_acc + 1
+        cmp     <psg_freq + 1
+        bcc     .div_done
+        bne     .can_subtract
+        lda     <psg_acc + 0
+        cmp     <psg_freq + 0
+        bcc     .div_done
+
+.can_subtract:
+        ; acc -= freq (16-bit), borrow into high byte of acc.
+        sec
+        lda     <psg_acc + 0
+        sbc     <psg_freq + 0
+        sta     <psg_acc + 0
+        lda     <psg_acc + 1
+        sbc     <psg_freq + 1
+        sta     <psg_acc + 1
+        lda     <psg_acc + 2
+        sbc     #0
+        sta     <psg_acc + 2
+
+        ; divider++
+        inc     <psg_div + 0
+        bne     .div_loop
+        inc     <psg_div + 1
+        bra     .div_loop
+
+.div_done:
+        ; Program PSG channel 0.
+        stz     PSG_CH_SEL              ; select channel 0
+        lda     <psg_div + 0
+        sta     PSG_FREQ_LO
+        lda     <psg_div + 1
+        and     #$0F                    ; high byte is 4 bits in PSG
+        sta     PSG_FREQ_HI
+        lda     #$FF
+        sta     PSG_BAL                 ; both channels full
+
+        ; Channel on (bit 7) + 5-bit volume. The X16 sequencer passes
+        ; a 6-bit "VERA PSG" volume; we just take the low 5 bits.
+        lda     <psg_vol
+        and     #$1F
+        ora     #$80
+        sta     PSG_CTRL
+        rts
+
+
+; ===========================================================================
+;
+; platform_stop_sound - Silence PSG channel 0 (turns the channel off).
+;
+; ===========================================================================
+
+platform_stop_sound:
+        stz     PSG_CH_SEL              ; select channel 0
+        stz     PSG_CTRL                ; ch off, DDA off, vol 0
+        rts
+
+
+; ===========================================================================
 ; Graphics tile bitmaps + palettes + font binary
 ; ===========================================================================
 
@@ -469,6 +635,20 @@ tile_gfx:
         ;   row 7:  . . X X X X . .                         $3C
         db      $3C, $3C, $FF, $E7, $E7, $FF, $3C, $3C
 
+        ; +14 CHR_SPIDER - side-view spider (head facing right). Built
+        ; from src/x16/engine/spider.asm draw_spider_shape (head + body +
+        ; abdomen + 6 legs + 2 feet). Painted in PAL_GRAY normally, in
+        ; PAL_YELLOW when spider_vulnerable is set.
+        ;   row 0:  . . . . . . . .                         $00
+        ;   row 1:  . . X X X X . .  body                   $3C
+        ;   row 2:  X X X X X X X X  head + body + abdomen  $FF
+        ;   row 3:  X X X X X X X X  head + body + abdomen  $FF
+        ;   row 4:  . . X X X X . .  body                   $3C
+        ;   row 5:  . X X X X X X .  6 legs                 $7E
+        ;   row 6:  X . . . . . . X  front + rear feet      $81
+        ;   row 7:  . . . . . . . .                         $00
+        db      $00, $3C, $FF, $FF, $3C, $7E, $81, $00
+
 
         align   2
 my_palette:
@@ -507,9 +687,26 @@ my_palette:
         dw      $0000,$0000,$0000,$0000,$0000,$0010,$0038,$0000
         dw      $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
 
+        ; Palette 4 - GRAY (normal/non-vulnerable spiders).
+        ;   $0092  dim grey shadow   (slot 5) g=4, r=4, b=2
+        ;   $0124  light grey ink    (slot 6) g=5, r=5, b=4
+        dw      $0000,$0000,$0000,$0000,$0000,$0092,$0124,$0000
+        dw      $0000,$0000,$0000,$0000,$0000,$0000,$0000,$0000
+
 
 my_font:
         incbin  "font8x8-ascii-bold-short.dat"
+
+
+; PSG waveform: 32 5-bit samples for a square wave (16 zero, 16 max).
+; Loaded into channel 0's wave buffer once at boot. Gives the blippy beep
+; that the X16/Neo's pulse-wave VERA PSG produces - simple but matches
+; the sound style of the originals.
+psg_waveform:
+        db      $00, $00, $00, $00, $00, $00, $00, $00
+        db      $00, $00, $00, $00, $00, $00, $00, $00
+        db      $1F, $1F, $1F, $1F, $1F, $1F, $1F, $1F
+        db      $1F, $1F, $1F, $1F, $1F, $1F, $1F, $1F
 
 
 ; ===========================================================================
@@ -527,6 +724,13 @@ gfx_tile_y0:      ds 1     ; saved Y for pass B inside upload_gfx_tiles
 font_src:         ds 2     ; pointer into my_font (advances 8 bytes/glyph)
 font_dst:         ds 2     ; pointer into shifted_font
 font_glyph_count: ds 1     ; remaining glyphs to process
+
+; platform_play_note scratch. The 24-bit accumulator holds 111875
+; initially; we subtract psg_freq from it and count the iterations.
+psg_freq:         ds 2     ; current note frequency in Hz
+psg_acc:          ds 3     ; 24-bit running accumulator for the divide
+psg_div:          ds 2     ; result: 12-bit PSG divider (low byte + high nybble)
+psg_vol:          ds 1     ; latched volume to apply to PSG_CTRL
 
 
 ; ===========================================================================

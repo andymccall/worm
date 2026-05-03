@@ -78,6 +78,7 @@ show_about_screen:
         ; --- Wait for any button press -------------------------------------
 .wait:
         call    wait_vsync
+        jsr     sfx_update
         lda     joytrg
         and     #(JOY_B1 | JOY_B2 | JOY_RUN | JOY_SEL)
         beq     .wait

@@ -1,13 +1,13 @@
 # Worm — Game Manual
 
-Worm is a classic snake-style game for the Commander X16 and Neo6502 retro computers. Guide your worm around the playfield, eat flowers to grow, avoid spiders, and survive as long as you can!
+Worm is a classic snake-style game for the Commander X16, Neo6502, and PC Engine / TurboGrafx-16 retro computers. Guide your worm around the playfield, eat flowers to grow, avoid spiders, and survive as long as you can!
 
 ## Screenshots
 
-| Commander X16 | Neo6502 |
-|:---:|:---:|
-| ![Commander X16 Menu](images/commanderx16-menu.png) | ![Neo6502 Menu](images/neo6502-menu.png) |
-| ![Commander X16 Gameplay](images/commanderx16-game.png) | ![Neo6502 Gameplay](images/neo6502-game.png) |
+| Commander X16 | Neo6502 | PC Engine / TG-16 |
+|:---:|:---:|:---:|
+| ![Commander X16 Menu](images/commanderx16-menu.png) | ![Neo6502 Menu](images/neo6502-menu.png) | ![PC Engine Menu](images/pce-menu.png) |
+| ![Commander X16 Gameplay](images/commanderx16-game.png) | ![Neo6502 Gameplay](images/neo6502-game.png) | ![PC Engine Gameplay](images/pce-game.png) |
 
 ## Loading and Running
 
@@ -34,22 +34,36 @@ Load the `worm.neo` file using the Neo6502 emulator or flash it to your device:
 neo worm.neo cold
 ```
 
+### PC Engine / TurboGrafx-16
+
+Load `worm.pce` in [Geargrafx](https://github.com/drhelius/Geargrafx) (recommended), [Mednafen](https://mednafen.github.io/), or [Mesen2](https://www.mesen.ca/):
+
+```sh
+geargrafx worm.pce
+```
+
+To play on real hardware, copy `worm.pce` to the SD card of a HuCard flash cart such as the **Turbo EverDrive Pro** (or Turbo EverDrive v2), insert it into a PC Engine or TurboGrafx-16, and select the file from the cart's browser. The ROM is a standard 16KB HuCard image.
+
 ## Main Menu
 
-When the game starts, a short jingle plays and the main menu appears. A small decorative worm circles the menu options while you choose:
+When the game starts, a short jingle plays and the main menu appears. A small decorative worm circles the menu options while you choose between **START**, **ABOUT**, and **DEMO**.
 
-| Key | Action |
-|-----|--------|
-| **S** | Start a new game |
-| **A** | View the About screen (author and credits) |
-| **D** | Watch a demo (attract mode) |
-| **Q** | Quit the game |
+On the X16 and Neo6502 the menu is keyboard-driven; on the PC Engine it is controller-driven (no keyboard). The available actions are:
 
-If no key is pressed for 30 seconds, the game automatically enters demo mode.
+| X16 / Neo key | PCE controller | Action |
+|---|---|---|
+| **S** | D-pad up/down to **START**, then **I** | Start a new game |
+| **A** | D-pad to **ABOUT**, then **I** | View the About screen (author and credits) |
+| **D** | D-pad to **DEMO**, then **I** | Watch a demo (attract mode) |
+| **Q** | (not available on PCE — consoles can't quit) | Quit the game (X16 / Neo only) |
+
+If no input is given for 30 seconds, the game automatically enters demo mode.
 
 ## How to Play
 
 ### Controls
+
+#### Commander X16 / Neo6502 (keyboard)
 
 | Key | Action |
 |-----|--------|
@@ -59,6 +73,14 @@ If no key is pressed for 30 seconds, the game automatically enters demo mode.
 | **D** or **Right Arrow** | Move right |
 | **P** or **Space** | Pause the game |
 | **Q** | Quit to menu |
+
+#### PC Engine / TurboGrafx-16 (controller)
+
+| Button | Action |
+|--------|--------|
+| **D-pad** ↑ ↓ ← → | Steer the worm |
+| **I**, **II**, or **RUN** | Confirm menu selection / dismiss About screen |
+| Any button | Exit demo mode back to the menu |
 
 The worm cannot reverse direction — you cannot turn 180 degrees back on yourself. For example, if you are moving right, you cannot immediately move left.
 
@@ -138,7 +160,9 @@ When you eat food while already at maximum lives (3), all spiders on the field t
 
 This creates a risk/reward dynamic — you can use vulnerability windows to clear dangerous spiders from the field, but you need to act quickly before eating the next flower ends the window.
 
-## Pause and Quit
+## Pause and Quit (X16 / Neo6502)
+
+The pause and quit-to-menu features are only available on the keyboard-driven X16 and Neo6502 builds. The PC Engine build runs through to game over (or you can power-cycle the console).
 
 ### Pausing
 
@@ -150,7 +174,7 @@ Press **Q** during gameplay to bring up a quit confirmation: "ARE YOU SURE?" wit
 
 ## Demo Mode
 
-Select **D** from the main menu (or wait 30 seconds) to watch the computer play the game automatically. The demo follows all the same rules as normal gameplay. Press any key to return to the main menu.
+Select **DEMO** from the main menu (or wait 30 seconds without input) to watch the computer play the game automatically. The demo follows all the same rules as normal gameplay. Press any key (X16 / Neo) or any button (PCE) to return to the main menu.
 
 ## Tips
 

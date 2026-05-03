@@ -67,6 +67,18 @@ show_start_screen:
         stz     <cursor_prev_idx
         call    paint_cursor
 
+        ; --- Spin up the decorative menu worm -----------------------------
+        jsr     menu_worm_init
+
+        ; --- Init the idle countdown -------------------------------------
+        ; After MENU_IDLE_FRAMES of no input the menu auto-launches demo,
+        ; matching the X16/Neo "30-second timeout" behaviour. Counter is
+        ; 16-bit (480 fits in 16 bits, plenty of room if we tune higher).
+        lda     #<MENU_IDLE_FRAMES
+        sta     menu_timer
+        lda     #>MENU_IDLE_FRAMES
+        sta     menu_timer + 1
+
         ; --- Input loop ---------------------------------------------------
         ;
         ; CORE's joypad reader fires every vsync and exposes:
@@ -76,6 +88,8 @@ show_start_screen:
 
 .loop:
         call    wait_vsync
+        jsr     sfx_update              ; advance the menu-jingle sequencer
+        jsr     menu_worm_update        ; tick the decorative worm
 
         lda     joytrg
         and     #JOY_U
@@ -87,7 +101,7 @@ show_start_screen:
         dec     a
         sta     <cursor_idx
         call    repaint_cursor
-        bra     .loop
+        jmp     .reset_timer
 
 .check_down:
         lda     joytrg
@@ -101,17 +115,43 @@ show_start_screen:
 .down_store:
         sta     <cursor_idx
         call    repaint_cursor
-        bra     .loop
+        jmp     .reset_timer
 
 .check_select:
         lda     joytrg
         and     #(JOY_B1 | JOY_B2 | JOY_RUN)
-        beq     .loop
+        beq     .tick_idle
 
         ; Convert cursor_idx (0..2) -> X16/Neo selection code (1..3).
         lda     <cursor_idx
         inc     a
         rts
+
+.tick_idle:
+        ; No input this frame: count down toward auto-demo. menu_timer
+        ; is 16-bit, decrement low byte first; on underflow borrow from
+        ; high byte; when both reach 0, time's up.
+        lda     menu_timer
+        bne     .dec_lo
+        lda     menu_timer + 1
+        beq     .do_demo
+        dec     menu_timer + 1
+.dec_lo:
+        dec     menu_timer
+        bra     .loop
+
+.do_demo:
+        ; Idle timed out - return DEMO selection (3).
+        lda     #3
+        rts
+
+.reset_timer:
+        ; User did something, reset the countdown.
+        lda     #<MENU_IDLE_FRAMES
+        sta     menu_timer
+        lda     #>MENU_IDLE_FRAMES
+        sta     menu_timer + 1
+        jmp     .loop
 
 
 ; ===========================================================================
@@ -226,3 +266,8 @@ menu_text_demo:         db      "DEMO",  0
 cursor_idx:       ds 1     ; current selection 0..NUM_MENU_ITEMS-1
 cursor_prev_idx:  ds 1     ; previous selection (for cursor erase)
 menu_result:      ds 1     ; final selection on B1 press
+
+
+        .bss
+
+menu_timer:       ds 2     ; 16-bit idle countdown; demo at 0

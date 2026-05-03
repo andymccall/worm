@@ -40,6 +40,7 @@ PAL_GREEN       =       0
 PAL_BLUE        =       1
 PAL_YELLOW      =       2
 PAL_RED         =       3
+PAL_GRAY        =       4               ; Normal (non-vulnerable) spiders
 
 ; ---------------------------------------------------------------------------
 ; Tile slots in CHR space (graphics tiles before the ASCII font range).
@@ -67,8 +68,9 @@ CHR_DIV_VR        =     CHR_0x10 + 10   ; Divider left T-junction
 CHR_DIV_VL        =     CHR_0x10 + 11   ; Divider right T-junction
 CHR_HEART         =     CHR_0x10 + 12   ; 7x6 heart for LIVES display
 CHR_FOOD          =     CHR_0x10 + 13   ; 4-leaf clover food pellet
+CHR_SPIDER        =     CHR_0x10 + 14   ; 8x8 side-view spider
 
-NUM_GFX_TILES     =     14              ; Tiles uploaded by upload_gfx_tiles
+NUM_GFX_TILES     =     15              ; Tiles uploaded by upload_gfx_tiles
 
 ; ---------------------------------------------------------------------------
 ; Border layout
@@ -98,12 +100,29 @@ STATUS_ROW        =     1
 
 STATUS_FOOD_COL       = 1
 STATUS_FOOD_COUNT_COL = 6                      ; "FOOD " is 5 chars
-STATUS_LIVES_COL      = 22
-STATUS_HEART_COL      = 28
+STATUS_LIVES_COL      = 21              ; LIVES (5 chars) ends at col 25
+STATUS_HEART_COL      = 27              ; hearts at cols 27..29 (3 hearts)
+                                        ; col 30 stays clear of the right
+                                        ; border line at col 31's bit 6.
 
 ; Lives + heart display (matches src/x16/system/wm_equates.inc).
 MAX_LIVES         =     3
 STATUS_HEART_MAX  =     6
+
+; Spider constants (matches src/x16/system/wm_equates.inc).
+MAX_SPIDERS       =     8                ; circular buffer capacity
+SPIDER_SPAWN_FOOD =     10               ; food eaten between spider spawns
+
+; Life pickup cadence (matches src/x16/engine/game.asm).
+LIFE_SPAWN_FOOD   =     20               ; food eaten between life pickups
+
+; Demo / attract-mode tuning. The X16/Neo build runs at 60Hz so 1800
+; frames = 30 s idle before demo kicks in; PCE wait_vsync runs at ~16Hz
+; so we use 480 frames for a similar wall-clock delay. The food limit
+; matches X16/Neo - demo exits back to the menu when it's been
+; "demonstrated" 100 pellets worth of gameplay.
+MENU_IDLE_FRAMES  =     480              ; idle frames before auto-demo
+DEMO_FOOD_LIMIT   =     100              ; food eaten before demo exits
 
 ; ---------------------------------------------------------------------------
 ; Direction codes (matches src/x16/system/wm_equates.inc)
@@ -159,7 +178,9 @@ MENU_ROW_0      =       16              ; First menu item
 MENU_ROW_1      =       18
 MENU_ROW_2      =       20
 MENU_COL        =       12              ; Where menu text starts
-CURSOR_COL      =       10              ; Where the cursor block lives
+CURSOR_COL      =       11              ; Cursor cell - one in from the
+                                        ; menu-worm path's left edge so
+                                        ; they don't sit adjacent.
 
 ; ---------------------------------------------------------------------------
 ; About screen rows

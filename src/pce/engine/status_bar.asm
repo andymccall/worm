@@ -52,9 +52,14 @@ draw_status_bar:
         sta     <_bp + 1
         call    paint_string
 
-        ; --- Red hearts: one per life, capped at STATUS_HEART_MAX ---------
-        ; Step pixel-style by 1 BAT cell; the hearts already have built-in
-        ; horizontal padding (col 7 of the tile is blank).
+        ; --- Red hearts: one per life, blank slots for the rest -----------
+        ; Paint exactly MAX_LIVES cells: a lit CHR_HEART for each life
+        ; remaining, then blank space tiles for the difference. This is
+        ; what keeps stale hearts from a previous draw from sticking
+        ; around after lives decrements. We deliberately stop at
+        ; MAX_LIVES (not STATUS_HEART_MAX) because the heart row only
+        ; reserves columns 27..29 in the BAT - going further would
+        ; trample the right vertical border at col 31.
         lda     #<(STATUS_ROW * BAT_LINE + STATUS_HEART_COL)
         sta     <_di + 0
         lda     #>(STATUS_ROW * BAT_LINE + STATUS_HEART_COL)
@@ -63,17 +68,28 @@ draw_status_bar:
 
         ldx     #0
 .heart_loop:
-        cpx     lives
-        bcs     .hearts_done
-        cpx     #STATUS_HEART_MAX
+        cpx     #MAX_LIVES
         bcs     .hearts_done
 
-        ; Plant a CHR_HEART tile in palette PAL_RED.
+        cpx     lives
+        bcs     .blank_slot
+
+        ; Lit heart in PAL_RED.
         lda     #<CHR_HEART
         sta     VDC_DL
         lda     #>CHR_HEART
         ora     #(PAL_RED << 4)
         sta     VDC_DH
+        bra     .next_heart
+
+.blank_slot:
+        ; Empty cell where a heart could go.
+        lda     #<CHR_0x20
+        sta     VDC_DL
+        lda     #>CHR_0x20
+        sta     VDC_DH
+
+.next_heart:
         inx
         bra     .heart_loop
 .hearts_done:

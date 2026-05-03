@@ -65,7 +65,7 @@ spawn_food:
         ldx     #0
 .check:
         cpx     worm_len
-        bcs     .done
+        bcs     .check_life
         lda     food_x
         cmp     body_x, x
         bne     .next
@@ -75,7 +75,27 @@ spawn_food:
 .next:
         inx
         bra     .check
-.done:
+
+.check_life:
+        ; Reject if food overlaps the active life pickup.
+        lda     life_active
+        beq     .check_spiders
+        lda     food_x
+        cmp     life_x
+        bne     .check_spiders
+        lda     food_y
+        cmp     life_y
+        beq     .retry
+
+.check_spiders:
+        ; Reject if food overlaps any active spider. We borrow spider.asm's
+        ; helper which reads cell_x / cell_y, so populate those first.
+        lda     food_x
+        sta     <cell_x
+        lda     food_y
+        sta     <cell_y
+        jsr     check_pos_vs_spiders
+        beq     .retry
         rts
 
 

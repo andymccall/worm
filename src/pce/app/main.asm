@@ -53,12 +53,17 @@
         include "wm_drawing.asm"
         include "worm.asm"
         include "food.asm"
+        include "spider.asm"
+        include "life.asm"
+        include "sound.asm"
         include "status_bar.asm"
         include "game.asm"
 
         include "menu.asm"              ; app/
+        include "menu_worm.asm"
         include "about.asm"
         include "overlays.asm"
+        include "demo.asm"
 
 
 ; ***************************************************************************
@@ -116,10 +121,10 @@ bare_main:
 
         call    upload_gfx_tiles
 
-        ; --- Upload palettes (4: green, blue, yellow, red) -----------------
+        ; --- Upload palettes (5: green, blue, yellow, red, gray) -----------
 
         stz     <_al                    ; Start at palette 0.
-        lda     #4                      ; Four palettes.
+        lda     #5                      ; Five palettes.
         sta     <_ah
         lda     #<my_palette
         sta     <_bp + 0
@@ -128,6 +133,11 @@ bare_main:
         ldy     #^my_palette
         call    load_palettes
         call    xfer_palettes
+
+        ; --- Initialise PSG channel 0 + kick the menu jingle ---------------
+
+        jsr     psg_init
+        jsr     sfx_play_menu_jingle
 
         ; --- Initialise game state, draw the status bar --------------------
         ;
@@ -172,6 +182,7 @@ bare_main:
         ; show_start_screen.
         call    game_reset_stats
         call    game_run
+        jsr     sfx_stop
         bra     .dispatch
 
 .do_about:
@@ -179,8 +190,8 @@ bare_main:
         bra     .dispatch
 
 .do_demo:
-        ; Demo isn't scripted yet, run the same game session as START
-        ; (just human-controlled). Future demo_run will replace this.
-        call    game_reset_stats
-        call    game_run
+        ; AI-driven attract mode. demo_run does its own game_reset_stats
+        ; and game_init internally; we just dispatch to it.
+        call    demo_run
+        jsr     sfx_stop
         bra     .dispatch

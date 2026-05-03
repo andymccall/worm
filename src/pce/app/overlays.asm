@@ -34,11 +34,15 @@ show_get_ready:
         sta     <_bp + 1
         call    paint_string
 
-        ; Hold for DELAY_GET_READY frames.
+        ; Kick the get-ready jingle then hold for DELAY_GET_READY frames,
+        ; calling sfx_update each frame to advance the sequencer.
+        jsr     sfx_play_get_ready
+
         lda     #DELAY_GET_READY
         sta     delay_count
 .delay:
         call    wait_vsync
+        jsr     sfx_update
         dec     delay_count
         bne     .delay
         rts

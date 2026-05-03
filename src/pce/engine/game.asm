@@ -48,6 +48,10 @@ game_init:
         stz     frame_count
         stz     grow_flag
 
+        ; Clear any leftover life pickup from a previous life. (Spiders
+        ; persist across lives; life pickups don't, per X16/Neo.)
+        stz     life_active
+
         ; Seed the LFSR. We bias the seed off the user's menu interaction
         ; time (frame_count was incrementing during the game_loop's last
         ; iteration, plus joynow at this moment) so picking START at
@@ -74,6 +78,16 @@ game_reset_stats:
         stz     food_count
         lda     #MAX_LIVES
         sta     lives
+
+        ; Spider state (matches src/x16/engine/game.asm:game_reset_stats).
+        stz     spider_count
+        stz     spider_head
+        stz     food_since_spider
+        stz     spider_vulnerable
+
+        ; Life-pickup state.
+        stz     food_since_life
+        stz     life_active
         rts
 
 
@@ -140,10 +154,13 @@ game_run:
 
         call    game_init
 
-        ; Wipe the GET READY message, draw the worm + food.
+        ; Wipe the GET READY message, draw the worm + food + any spiders
+        ; that survived from a previous life. (game_init clears life_active
+        ; so we never re-draw a stale life pickup across lives.)
         call    clear_playfield
         call    draw_all_segments
         call    draw_food
+        call    draw_all_spiders
         call    draw_status_bar
 
         call    game_loop
@@ -163,14 +180,16 @@ game_run:
 ;   A = 1 - died with lives remaining (caller should respawn)
 ;   A = 0 - game over (last life lost)
 ;
-; Mirrors src/x16/engine/game.asm:game_loop without the spider, life,
-; pause, or quit-confirm branches (those don't exist on PCE yet).
+; Mirrors src/x16/engine/game.asm:game_loop without the life, pause, or
+; quit-confirm branches (those don't exist on PCE yet). Spider spawning,
+; collision, and vulnerability are wired in here.
 ;
 ; ===========================================================================
 
 game_loop:
 .loop:
         call    wait_vsync
+        jsr     sfx_update
 
         ; --- Read the D-pad for a direction change -------------------------
         jsr     poll_direction
@@ -187,6 +206,9 @@ game_loop:
 
         stz     frame_count
 
+        ; Tick: a fresh worm move. Play the move blip.
+        jsr     sfx_play_move
+
         ; --- Erase tail (skip if growing) ---------------------------------
         lda     grow_flag
         bne     .skip_erase
@@ -197,29 +219,129 @@ game_loop:
         jsr     advance_body
 
         ; --- Border collision = die ----------------------------------------
+        ; Loop body grew large enough that .died is past relative-branch
+        ; range; bcc-around-jmp gets us there.
         jsr     check_collision
-        bcs     .died
+        bcc     .border_ok
+        jmp     .died
+.border_ok:
 
         ; --- Self collision = die ------------------------------------------
         jsr     check_self_collision
-        bcs     .died
+        bcc     .self_ok
+        jmp     .died
+.self_ok:
+
+        ; --- Spider collision ----------------------------------------------
+        ; Hit a spider: die, unless vulnerability mode is active in which
+        ; case we eat the spider and end the window.
+        jsr     check_spider_collision
+        bcc     .no_spider_hit
+        lda     spider_vulnerable
+        bne     .eat_spider
+        jmp     .died
+.eat_spider:
+        jsr     remove_hit_spider
+        stz     spider_vulnerable
+        jsr     draw_all_spiders
+        jsr     sfx_play_spider_eat
+.no_spider_hit:
 
         ; --- Did the head land on the food? --------------------------------
         jsr     check_food
         bne     .no_food
 
-        ; Ate food: grow next move, bump score, spawn + draw a fresh pellet,
-        ; refresh the HUD.
+        ; --- Ate food ------------------------------------------------------
         lda     #1
         sta     grow_flag
         inc     food_count
+        jsr     sfx_play_food
         jsr     spawn_food
         jsr     draw_food
+
+        ; If a life pickup was on the field, the act of eating food
+        ; consumes it (matches X16/Neo: life pickups expire when food is
+        ; eaten). Erase the heart and clear the flag.
+        lda     life_active
+        beq     .no_life_remove
+        jsr     erase_life
+        stz     life_active
+.no_life_remove:
+
+        ; End vulnerability on food collection.
+        lda     spider_vulnerable
+        beq     .no_vuln_end
+        stz     spider_vulnerable
+        jsr     draw_all_spiders
+.no_vuln_end:
+
+        ; --- Life-pickup cadence (every LIFE_SPAWN_FOOD pellets) -----------
+        ; If lives < MAX_LIVES: spawn a life pickup.
+        ; Else if there's at least one spider on screen: trigger
+        ; vulnerability mode (matches the X16/Neo "lives full" branch).
+        inc     food_since_life
+        lda     food_since_life
+        cmp     #LIFE_SPAWN_FOOD
+        bcc     .no_life_spawn
+
+        stz     food_since_life
+
+        lda     lives
+        cmp     #MAX_LIVES
+        bcs     .lives_full
+        jsr     spawn_life
+        lda     #1
+        sta     life_active
+        jsr     draw_life
+        bra     .no_life_spawn
+
+.lives_full:
+        ; Already at max lives - make spiders vulnerable instead.
+        lda     spider_count
+        beq     .no_life_spawn
+        lda     #1
+        sta     spider_vulnerable
+        jsr     draw_all_spiders
+        jsr     sfx_play_vulnerable
+
+.no_life_spawn:
+
+        ; --- Spider-spawn cadence (every SPIDER_SPAWN_FOOD pellets) -------
+        inc     food_since_spider
+        lda     food_since_spider
+        cmp     #SPIDER_SPAWN_FOOD
+        bcc     .no_spider_spawn
+
+        stz     food_since_spider
+        jsr     spawn_spider
+        jsr     draw_all_spiders
+        jsr     sfx_play_spider_appear
+
+.no_spider_spawn:
         jsr     draw_status_bar
-        bra     .draw_head
+        jmp     .draw_head
 
 .no_food:
         stz     grow_flag
+
+        ; --- Did the head land on the life pickup? ------------------------
+        jsr     check_life
+        bne     .draw_head
+
+        ; Ate the life pickup: +1 life (capped at MAX_LIVES), wipe the
+        ; cell, refresh the HUD.
+        lda     lives
+        cmp     #MAX_LIVES
+        bcs     .skip_life_gain
+        inc     lives
+.skip_life_gain:
+        stz     life_active
+        lda     life_x
+        sta     <cell_x
+        lda     life_y
+        sta     <cell_y
+        jsr     erase_cell
+        jsr     draw_status_bar
 
 .draw_head:
         ; --- Draw new head -------------------------------------------------
@@ -228,33 +350,43 @@ game_loop:
         lda     body_y
         sta     <cell_y
         jsr     draw_segment
-        bra     .loop
+        jmp     .loop                   ; long branch back to top of loop
 
 .died:
         ; --- Lose a life ---------------------------------------------------
         dec     lives
+        ; Reset spider-spawn counter so dying mid-cycle doesn't carry
+        ; partial progress into the next life (matches X16/Neo).
+        stz     food_since_spider
         jsr     draw_status_bar
 
         lda     lives
         beq     .real_game_over
 
-        ; Lives remaining: brief pause, return code 1 (respawn).
+        ; Lives remaining: play the life-lost jingle, brief pause,
+        ; return code 1 (respawn). sfx_update runs each frame so the
+        ; jingle plays out cleanly during the pause.
+        jsr     sfx_play_life_lost
         lda     #DELAY_LIFE_LOST
         sta     delay_count
 .life_delay:
         call    wait_vsync
+        jsr     sfx_update
         dec     delay_count
         bne     .life_delay
         lda     #1
         rts
 
 .real_game_over:
-        ; No lives left: show GAME OVER, hold for ~3 seconds, return code 0.
+        ; No lives left: GAME OVER message + jingle, hold for ~3 seconds,
+        ; return code 0.
         jsr     show_game_over
+        jsr     sfx_play_game_over
         lda     #DELAY_GAME_OVER
         sta     delay_count
 .go_delay:
         call    wait_vsync
+        jsr     sfx_update
         dec     delay_count
         bne     .go_delay
         lda     #0
