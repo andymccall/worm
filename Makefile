@@ -17,6 +17,10 @@ NEOEMU     = neo
 NEO_HOME   = ~/development/tools/neo6502
 PCEAS      = pceas
 GEARGRAFX  = geargrafx
+SJASMPLUS  = sjasmplus
+MONO       = mono
+CSPECT     = $(HOME)/development/tools/cspect/CSpect.exe
+CSPECT_IMG = $(HOME)/development/tools/sn-emulator/nextos.img
 
 # HuC install root - derived from where pceas lives so this works regardless
 # of where the user has unpacked HuC. Override on the command line if pceas
@@ -102,24 +106,52 @@ PCE_INCLUDE     := $(subst $(eval) ,:,$(PCE_INCLUDE_DIRS))
 PCEAS_FLAGS = --raw --newproc --strip -gA -m -l 2 -S
 
 # ---------------------------------------------------------------------------
+# ZX Spectrum Next  (sjasmplus, Z80N)
+# ---------------------------------------------------------------------------
+# sjasmplus is a single-pass assembler with native .nex output via the
+# SAVENEX directive, so there's no separate linker step. The whole project
+# is included from main.asm; we list every .asm/.inc as a Make-side
+# dependency so edits trigger rebuilds.
+ZXNEXT_MAIN = $(SRCDIR)/zxnext/app/main.asm
+ZXNEXT_SRCS = $(wildcard $(SRCDIR)/zxnext/app/*.asm) \
+              $(wildcard $(SRCDIR)/zxnext/engine/*.asm) \
+              $(wildcard $(SRCDIR)/zxnext/system/*.asm) \
+              $(wildcard $(SRCDIR)/zxnext/system/*.inc)
+ZXNEXT_OUTDIR = $(BUILDDIR)/zxnext
+ZXNEXT_OUT    = $(ZXNEXT_OUTDIR)/worm.nex
+ZXNEXT_MAP    = $(ZXNEXT_OUTDIR)/worm.map
+ZXNEXT_LST    = $(ZXNEXT_OUTDIR)/worm.lst
+ZXNEXT_SLD    = $(ZXNEXT_OUTDIR)/worm.sld
+
+# --zxnext=cspect : enable Z80N opcodes + CSpect-friendly .nex layout
+# --fullpath      : absolute paths in listings (helps IDE jumps)
+# -I              : include search path (engine/, system/ siblings of app/)
+# --outprefix     : prepend to SAVENEX/output filenames so .nex lands in build/
+SJASMPLUS_FLAGS = --zxnext=cspect --fullpath \
+                  -I$(SRCDIR)/zxnext/app \
+                  -I$(SRCDIR)/zxnext/engine \
+                  -I$(SRCDIR)/zxnext/system
+
+# ---------------------------------------------------------------------------
 # Phony targets
 # ---------------------------------------------------------------------------
-.PHONY: all build-x16 build-neo build-pce \
-        run-x16 run-neo run-pce \
-        release-x16 release-neo release-pce release-all \
+.PHONY: all build-x16 build-neo build-pce build-zxnext \
+        run-x16 run-neo run-pce run-zxnext \
+        release-x16 release-neo release-pce release-zxnext release-all \
         clean help
 
-all: build-x16 build-neo build-pce
+all: build-x16 build-neo build-pce build-zxnext
 
 help:
 	@echo "Targets:"
 	@echo "  build-x16     Commander X16        -> $(X16_OUT)"
 	@echo "  build-neo     Neo6502              -> $(NEO_OUT)"
 	@echo "  build-pce     PC Engine / TG-16    -> $(PCE_OUT)"
-	@echo "  all           build all three platforms"
+	@echo "  build-zxnext  ZX Spectrum Next     -> $(ZXNEXT_OUT)"
+	@echo "  all           build all four platforms"
 	@echo "  run-<plat>    build then launch the platform's emulator"
 	@echo "  release-<plat>  package the build artefact + manual + license"
-	@echo "  release-all   package all three platforms"
+	@echo "  release-all   package all four platforms"
 	@echo "  clean         remove build/ and release/"
 
 # ===========================================================================
@@ -184,6 +216,30 @@ run-pce: build-pce
 	$(GEARGRAFX) $(PCE_OUT) $(PCE_SYM)
 
 # ===========================================================================
+# ZX Spectrum Next
+# ===========================================================================
+build-zxnext: $(ZXNEXT_OUT)
+
+# sjasmplus' SAVENEX directive writes the .nex relative to the source dir
+# unless --outprefix= is given. We pass --outprefix=$(ZXNEXT_OUTDIR)/ so
+# both the .nex and the .map land in build/zxnext/ alongside the .lst/.sld.
+$(ZXNEXT_OUT): $(ZXNEXT_SRCS)
+	@mkdir -p $(ZXNEXT_OUTDIR)
+	$(SJASMPLUS) $(SJASMPLUS_FLAGS) \
+	    --outprefix=$(ZXNEXT_OUTDIR)/ \
+	    --lst=$(ZXNEXT_LST) \
+	    --sld=$(ZXNEXT_SLD) \
+	    $(ZXNEXT_MAIN)
+
+# CSpect is a Mono/.NET binary; MONO_IOMAP=all lets it open files written
+# with mixed-case paths from a Linux host. -zxnext selects the Next core,
+# -tv enables a TV-style window, -s28 oversamples for clarity, -w4 = 4x
+# window scale. -mmc points at the SD-card image (NextOS).
+run-zxnext: build-zxnext
+	MONO_IOMAP=all $(MONO) $(CSPECT) -tv -zxnext -s28 -w4 \
+	    -mmc=$(CSPECT_IMG) $(ZXNEXT_OUT)
+
+# ===========================================================================
 # Housekeeping
 # ===========================================================================
 clean:
@@ -192,7 +248,7 @@ clean:
 # ===========================================================================
 # Release packaging
 # ===========================================================================
-release-all: release-x16 release-neo release-pce
+release-all: release-x16 release-neo release-pce release-zxnext
 
 release-x16: build-x16
 	@mkdir -p $(RELEASEDIR)/worm-x16
@@ -217,3 +273,11 @@ release-pce: build-pce
 	cp LICENSE.txt $(RELEASEDIR)/worm-pce/license.txt
 	cd $(RELEASEDIR) && zip -r worm-pce.zip worm-pce/
 	rm -rf $(RELEASEDIR)/worm-pce
+
+release-zxnext: build-zxnext
+	@mkdir -p $(RELEASEDIR)/worm-zxnext
+	cp $(ZXNEXT_OUT) $(RELEASEDIR)/worm-zxnext/worm.nex
+	cp docs/MANUAL.TXT $(RELEASEDIR)/worm-zxnext/manual.txt
+	cp LICENSE.txt $(RELEASEDIR)/worm-zxnext/license.txt
+	cd $(RELEASEDIR) && zip -r worm-zxnext.zip worm-zxnext/
+	rm -rf $(RELEASEDIR)/worm-zxnext
