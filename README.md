@@ -17,7 +17,7 @@ A cross-platform snake-style game written in 6502 / HuC6280 assembly language fo
 
 | Platform | CPU | Assembler | Output |
 |----------|-----|-----------|--------|
-| Commander X16 | 65C02 | `ca65` / `ld65` | `WORM.PRG` |
+| Commander X16 | 65C02 | `ca65` / `ld65` | `WORM.PRG`, `WORM.CRT` (cartridge) |
 | Neo6502 | 65C02 | `ca65` / `ld65` | `worm.neo` |
 | PC Engine / TurboGrafx-16 | HuC6280 | `pceas` | `worm.pce` |
 
@@ -34,10 +34,11 @@ Each platform has its own independent ASM source tree under `src/<platform>/`. N
 ## Building
 
 ```sh
-make build-x16    # Build Commander X16 binary
-make build-neo    # Build Neo6502 binary
-make build-pce    # Build PC Engine HuCard ROM
-make all          # Build all platforms
+make build-x16       # Build Commander X16 binary (WORM.PRG)
+make build-x16-cart  # Build Commander X16 cartridge (WORM.CRT)
+make build-neo       # Build Neo6502 binary
+make build-pce       # Build PC Engine HuCard ROM
+make all             # Build all platforms
 ```
 
 Each 6502 platform is assembled with its own define (`-D __X16__` or `-D __NEO__`), but because the source trees are now independent the defines are increasingly cosmetic — left in place for the few `.ifdef` blocks that remain in the menu worm path coordinates. The PCE build is a single PCEAS translation unit (PCEAS has no linker), driven by [src/pce/app/main.asm](src/pce/app/main.asm) which `include`s the rest of the tree.
@@ -45,10 +46,20 @@ Each 6502 platform is assembled with its own define (`-D __X16__` or `-D __NEO__
 ## Running
 
 ```sh
-make run-x16      # Build and launch in x16emu
-make run-neo      # Build and launch in Neo6502 emulator
-make run-pce      # Build and launch in Geargrafx (loads .sym for source-level debug)
+make run-x16       # Build and launch the PRG in x16emu
+make run-x16-cart  # Build and launch the CRT cartridge in x16emu
+make run-neo       # Build and launch in Neo6502 emulator
+make run-pce       # Build and launch in Geargrafx (loads .sym for source-level debug)
 ```
+
+### Commander X16: PRG vs CRT
+
+Both builds produce the same game; they differ only in how the X16 loads them:
+
+- **`WORM.PRG`** — standard X16 program. Loaded with `LOAD"WORM.PRG",8` / `RUN`, or via `x16emu -prg WORM.PRG`. Use this for normal SD-card / HostFS distribution.
+- **`WORM.CRT`** — cartridge image for ROM bank 32, with the `"CX16"` autoboot signature. The KERNAL detects it on power-on and jumps straight into the game — no BASIC prompt, no `RUN`. Load it with `x16emu -cart WORM.CRT`, or flash it to a real cartridge board for hardware use.
+
+Internally the CRT is a small self-extracting loader plus the PRG payload: the boot stub copies the PRG to its normal load address at `$0801`, pages ROM bank 0 (KERNAL) back into the window, then jumps in. That keeps `platform.asm` reused as-is between the two builds.
 
 ### PC Engine: emulator and real hardware
 
@@ -59,10 +70,11 @@ To run on real hardware you'll need a HuCard flash cart that accepts a raw `.pce
 ## Release Packaging
 
 ```sh
-make release-x16  # Create release/worm-x16.zip
-make release-neo  # Create release/worm-neo.zip
-make release-pce  # Create release/worm-pce.zip
-make release-all  # Create all three release zip files
+make release-x16       # Create release/worm-x16.zip       (WORM.PRG)
+make release-x16-cart  # Create release/worm-x16-cart.zip  (WORM.CRT)
+make release-neo       # Create release/worm-neo.zip
+make release-pce       # Create release/worm-pce.zip
+make release-all       # Create all release zip files
 ```
 
 Each zip contains the game binary, MANUAL.TXT, and LICENSE.TXT.

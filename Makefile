@@ -40,13 +40,24 @@ RELEASEDIR = release
 # ---------------------------------------------------------------------------
 X16_SRCS = $(wildcard $(SRCDIR)/x16/app/*.asm) \
            $(wildcard $(SRCDIR)/x16/engine/*.asm) \
-           $(wildcard $(SRCDIR)/x16/system/*.asm)
+           $(SRCDIR)/x16/system/platform.asm
 X16_INCS = $(wildcard $(SRCDIR)/x16/app/*.inc) \
            $(wildcard $(SRCDIR)/x16/engine/*.inc) \
-           $(wildcard $(SRCDIR)/x16/system/*.inc)
+           $(SRCDIR)/x16/system/wm_equates.inc
 X16_OBJS = $(patsubst $(SRCDIR)/x16/%.asm,$(BUILDDIR)/x16/%.o,$(X16_SRCS))
 X16_CFG  = $(CFGDIR)/x16.cfg
 X16_OUT  = $(BUILDDIR)/x16/WORM.PRG
+
+# Commander X16 Cartridge
+# Self-extracting loader model: the cart bank is just a small boot stub plus
+# the existing WORM.PRG payload. The stub copies the PRG to its normal load
+# address ($0801) and pages KERNAL back in, so platform.asm is reused as-is
+# rather than duplicated for cart context.
+X16_CART_BOOT_OBJ = $(BUILDDIR)/x16/system/cart_boot.o
+X16_CART_BOOT_BIN = $(BUILDDIR)/x16/cart_boot.bin
+X16_CART_CFG  = $(CFGDIR)/x16-cart.cfg
+X16_CART_BIN  = $(BUILDDIR)/x16/WORM_CART.BIN
+X16_CART_OUT  = $(BUILDDIR)/x16/WORM.CRT
 
 # ---------------------------------------------------------------------------
 # Neo6502  (cc65 / ca65, 65C02)
@@ -135,24 +146,27 @@ SJASMPLUS_FLAGS = --zxnext=cspect --fullpath \
 # ---------------------------------------------------------------------------
 # Phony targets
 # ---------------------------------------------------------------------------
-.PHONY: all build-x16 build-neo build-pce build-zxnext \
-        run-x16 run-neo run-pce run-zxnext \
-        release-x16 release-neo release-pce release-zxnext release-all \
+.PHONY: all build-x16 build-x16-cart build-neo build-pce build-zxnext \
+        run-x16 run-x16-cart run-neo run-pce run-zxnext \
+        release-x16 release-x16-cart release-neo release-pce release-zxnext release-all \
         clean help
 
 all: build-x16 build-neo build-pce build-zxnext
 
 help:
 	@echo "Targets:"
-	@echo "  build-x16     Commander X16        -> $(X16_OUT)"
-	@echo "  build-neo     Neo6502              -> $(NEO_OUT)"
-	@echo "  build-pce     PC Engine / TG-16    -> $(PCE_OUT)"
-	@echo "  build-zxnext  ZX Spectrum Next     -> $(ZXNEXT_OUT)"
-	@echo "  all           build all four platforms"
-	@echo "  run-<plat>    build then launch the platform's emulator"
+	@echo "  build-x16       Commander X16 (PRG)  -> $(X16_OUT)"
+	@echo "  build-x16-cart  Commander X16 (CRT)  -> $(X16_CART_OUT)"
+	@echo "  build-neo       Neo6502              -> $(NEO_OUT)"
+	@echo "  build-pce       PC Engine / TG-16    -> $(PCE_OUT)"
+	@echo "  build-zxnext    ZX Spectrum Next     -> $(ZXNEXT_OUT)"
+	@echo "  all             build all four platforms (PRG versions)"
+	@echo "  run-<plat>      build then launch the platform's emulator"
+	@echo "  run-x16-cart    build and run X16 cartridge in emulator"
 	@echo "  release-<plat>  package the build artefact + manual + license"
-	@echo "  release-all   package all four platforms"
-	@echo "  clean         remove build/ and release/"
+	@echo "  release-x16-cart package the X16 cartridge build"
+	@echo "  release-all     package all platforms (PRG + CRT for X16)"
+	@echo "  clean           remove build/ and release/"
 
 # ===========================================================================
 # Commander X16
@@ -169,6 +183,33 @@ $(X16_OUT): $(X16_OBJS) $(X16_CFG)
 
 run-x16: build-x16
 	$(X16EMU) -prg $(X16_OUT)
+
+# ===========================================================================
+# Commander X16 Cartridge
+# ===========================================================================
+build-x16-cart: $(X16_CART_OUT)
+
+$(X16_CART_BOOT_OBJ): $(SRCDIR)/x16/system/cart_boot.asm
+	@mkdir -p $(dir $@)
+	$(CA65) --cpu 65C02 -D __X16__ -o $@ $<
+
+$(X16_CART_BOOT_BIN): $(X16_CART_BOOT_OBJ) $(X16_CART_CFG)
+	@mkdir -p $(dir $@)
+	$(LD65) -C $(X16_CART_CFG) -o $@ $(X16_CART_BOOT_OBJ)
+
+# 16K bank image = boot stub at $C000-$C0FF, then WORM.PRG with its 2-byte
+# load address stripped, zero-padded out to 16384.
+$(X16_CART_BIN): $(X16_CART_BOOT_BIN) $(X16_OUT)
+	@mkdir -p $(dir $@)
+	cat $(X16_CART_BOOT_BIN) > $@
+	tail -c +3 $(X16_OUT) >> $@
+	truncate -s 16384 $@
+
+$(X16_CART_OUT): $(X16_CART_BIN)
+	python3 tools/make_crt.py $(X16_CART_BIN) $@
+
+run-x16-cart: build-x16-cart
+	$(X16EMU) -cart $(X16_CART_OUT)
 
 # ===========================================================================
 # Neo6502
@@ -248,7 +289,7 @@ clean:
 # ===========================================================================
 # Release packaging
 # ===========================================================================
-release-all: release-x16 release-neo release-pce release-zxnext
+release-all: release-x16 release-x16-cart release-neo release-pce release-zxnext
 
 release-x16: build-x16
 	@mkdir -p $(RELEASEDIR)/worm-x16
@@ -257,6 +298,14 @@ release-x16: build-x16
 	cp LICENSE.txt $(RELEASEDIR)/worm-x16/LICENSE.TXT
 	cd $(RELEASEDIR) && zip -r worm-x16.zip worm-x16/
 	rm -rf $(RELEASEDIR)/worm-x16
+
+release-x16-cart: build-x16-cart
+	@mkdir -p $(RELEASEDIR)/worm-x16-cart
+	cp $(X16_CART_OUT) $(RELEASEDIR)/worm-x16-cart/WORM.CRT
+	cp docs/MANUAL.TXT $(RELEASEDIR)/worm-x16-cart/MANUAL.TXT
+	cp LICENSE.txt $(RELEASEDIR)/worm-x16-cart/LICENSE.TXT
+	cd $(RELEASEDIR) && zip -r worm-x16-cart.zip worm-x16-cart/
+	rm -rf $(RELEASEDIR)/worm-x16-cart
 
 release-neo: build-neo
 	@mkdir -p $(RELEASEDIR)/worm-neo
